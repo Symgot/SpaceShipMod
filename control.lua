@@ -327,7 +327,7 @@ script.on_event(defines.events.on_entity_died, function(event)
         for _, spaceship in pairs(storage.spaceships or {}) do
             if spaceship.own_surface and spaceship.surface == surface then
                 -- Handle asteroid death
-                Travel.handle_asteroid_death(entity, event.force, event.cause)
+                --Travel.handle_asteroid_death(entity, event.force, event.cause)
                 break
             end
         end

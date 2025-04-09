@@ -64,7 +64,7 @@ function SpaceShipGuis.handle_button_click(player, button_name)
     elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
         if storage.spaceships[storage.opened_entity_id].scanned then
             player.print("Spaceship takeoff initiated!")
-            SpaceShip.shipTakeoff(player)
+            SpaceShip.ship_takeoff(player)
         else
             player.print("Error: You must scan the ship before taking off.")
         end
@@ -73,13 +73,13 @@ function SpaceShipGuis.handle_button_click(player, button_name)
         SpaceShip.clone_ship_to_space_platform(player)
     elseif button_name == "close-spaceship-extended-gui" then
         SpaceShipGuis.close_spaceship_gui(player)
-    elseif button_name == "confirm_takeoff" then
-        player.print("Takeoff confirmed!")
-        SpaceShip.finalizeTakeoff(player) -- Call the finalizeTakeoff function
-    elseif button_name == "cancel_takeoff" then
-        player.print("Takeoff canceled!")
-        SpaceShip.cancelTakeoff(player) -- Call the cancelTakeoff function
-    elseif button_name == "ship_dock" then
+    elseif button_name == "confirm-dock" then
+        player.print("Docking confirmed!")
+        SpaceShip.finalize_dock(player) -- Call the finalizeTakeoff function
+    elseif button_name == "cancel-dock" then
+        player.print("Docking canceled!")
+        SpaceShip.cancel_dock(player) -- Call the cancelTakeoff function
+    elseif button_name == "ship-dock" then
         player.print("Docking the spaceship...")
         SpaceShip.dock_ship(player)
     else

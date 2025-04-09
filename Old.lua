@@ -1,5 +1,5 @@
 
--- Function to handle spaceship takeoff
+-- Re-used for dock function
 function SpaceShip.shipTakeoff(player)
     local src_surface = player.surface
     local dest_surface
