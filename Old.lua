@@ -199,3 +199,31 @@ function SpaceShip.cancelTakeoff(player)
     player.print("Takeoff canceled. Returning to the ship.")
     storage.spaceships[storage.opened_entity_id].taking_off = false -- Reset the taking off flag
 end
+
+-- Periodically spawn asteroids
+function Astroid_spawn(event)
+    if not storage.spaceships then return end
+    for _, ship in pairs(storage.spaceships) do
+        if  ship.own_surface ~= nil then
+            if event.tick % 120 == 0 and ship.own_surface then-- Spawn asteroids every 2 seconds
+                if not is_ship_moving() then
+                    local space_platform = ship.surface-- Replace with your surface name
+                    if space_platform then
+                        Travel.spawn_asteroid(ship)
+                    end
+                end
+            end
+        end
+    
+        if event.tick % 10 == 0 then -- Move asteroids every 10 ticks
+            --Travel.move_asteroids()
+        end
+    
+        if event.tick % 300 == 0 then                                -- Check for despawning every 5 seconds
+            local space_platform = game.surfaces["space-platform-1"] -- Replace with your surface name
+            if space_platform then
+                Travel.despawn_asteroids(space_platform)
+            end
+        end
+    end
+end

@@ -37,8 +37,9 @@ function SpaceShipGuis.create_spaceship_gui(player)
     }
 
     custom_gui.add { type = "button", name = "scan-ship", caption = "Scan Ship" }
-    custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff" }
     custom_gui.add { type = "button", name = "ship-platform", caption = "Travel Mode" }
+    custom_gui.add { type = "button", name = "ship-dock", caption = "Dock" }
+    custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff" }
     custom_gui.add { type = "button", name = "close-spaceship-extended-gui", caption = "Close" }
 end
 
@@ -78,6 +79,9 @@ function SpaceShipGuis.handle_button_click(player, button_name)
     elseif button_name == "cancel_takeoff" then
         player.print("Takeoff canceled!")
         SpaceShip.cancelTakeoff(player) -- Call the cancelTakeoff function
+    elseif button_name == "ship_dock" then
+        player.print("Docking the spaceship...")
+        SpaceShip.dock_ship(player)
     else
         player.print("Unknown button clicked: " .. button_name)
     end

@@ -314,33 +314,6 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
     end
 end)
 
--- Periodically spawn asteroids
-function Astroid_spawn(event)
-    if not storage.spaceships then return end
-    for _, ship in pairs(storage.spaceships) do
-        if  ship.own_surface ~= nil then
-            if event.tick % 120 == 0 and ship.own_surface then-- Spawn asteroids every 2 seconds
-                if not is_ship_moving() then
-                    local space_platform = ship.surface-- Replace with your surface name
-                    if space_platform then
-                        Travel.spawn_asteroid(ship)
-                    end
-                end
-            end
-        end
-    
-        if event.tick % 10 == 0 then -- Move asteroids every 10 ticks
-            --Travel.move_asteroids()
-        end
-    
-        if event.tick % 300 == 0 then                                -- Check for despawning every 5 seconds
-            local space_platform = game.surfaces["space-platform-1"] -- Replace with your surface name
-            if space_platform then
-                Travel.despawn_asteroids(space_platform)
-            end
-        end
-    end
-end
 
 script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
@@ -365,5 +338,20 @@ script.on_event(defines.events.on_player_driving_changed_state, function (event)
     local player = game.get_player(event.player_index)
     if event.entity.name == "space-platform-hub" then
         player.leave_space_platform()
+    end
+end)
+
+script.on_event(defines.events.on_space_platform_changed_state, function (event)
+    local plat = event.platform
+    if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
+        game.print("Spaceship Explorer 1 has been changed state to:".. plat.state)
+        hub = plat.surface.find_entities_filtered{name = "spaceship-control-hub"}
+        ship = storage.spaceships[hub[1].unit_number]
+        ship.planet_orbiting = plat.space_location.name
+    elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
+        game.print("Spaceship Explorer 1 has been changed state to:".. plat.state)
+        hub = plat.surface.find_entities_filtered{name = "spaceship-control-hub"}
+        ship = storage.spaceships[hub[1].unit_number]
+        ship.planet_orbiting = "none"
     end
 end)

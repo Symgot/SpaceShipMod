@@ -339,6 +339,8 @@ function SpaceShip.clone_ship_to_space_platform(player)
         starter_pack = "space-ship-starter-pack",
     })
     space_platform.apply_starter_pack()
+    temp_entities = space_platform.surface.find_entities_filtered{name = "spaceship-control-hub"}
+    temp_entities[1].destroy()
     -- Define the destination center position
     local dest_center = { x = 0, y = 0 }
 
@@ -486,6 +488,10 @@ function SpaceShip.scan_ship(player)
     storage.scan_highlight_expire_tick = game.tick + 60
     player.print("Ship scan completed! Found " ..
         table_size(flooring_tiles) .. " tiles and " .. table_size(entities_on_flooring) .. " entities.")
+end
+
+function SpaceShip.dock_ship(player)
+--add takeoff logic back in here 
 end
 
 return SpaceShip
