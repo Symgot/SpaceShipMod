@@ -1,0 +1,5 @@
+custom gui that uses space hub inventory, that way stuff is hidden
+
+need to do: 
+-Land ships at station
+-create gui for making auto schedule.
