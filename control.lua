@@ -28,7 +28,7 @@ script.on_event(defines.events.on_built_entity, function(event)
         local my_ship = SpaceShip.new("Explorer" .. count, (table_size(storage.spaceships) + 1), player)
         my_ship.hub = entity
         storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 6 } -- Car spawns slightly lower so player can enter it
+        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
         local car = surface.create_entity {
             name = "spaceship-control-hub-car",
             position = car_position,
@@ -56,7 +56,7 @@ script.on_event(defines.events.on_robot_built_entity, function(event)
         local my_ship = SpaceShip.new("Explorer" .. (#storage.spaceships + 1), (#storage.spaceships + 1), player)
         my_ship.hub = entity
         storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 6 } -- Car spawns slightly lower so player can enter it
+        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
         local car = surface.create_entity {
             name = "spaceship-control-hub-car",
             position = car_position,
@@ -84,7 +84,7 @@ script.on_event(defines.events.on_space_platform_built_entity,function(event)
         local my_ship = SpaceShip.new("Explorer" .. (#storage.spaceships + 1), (#storage.spaceships + 1), player)
         my_ship.hub = entity
         storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 6 } -- Car spawns slightly lower so player can enter it
+        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
         local car = surface.create_entity {
             name = "spaceship-control-hub-car",
             position = car_position,

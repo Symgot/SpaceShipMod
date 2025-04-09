@@ -80,8 +80,8 @@ data:extend({
         inventory_size        = 50,
         create_ghost_on_death = true,
         surface_conditions    = nil,
-        collision_box         = { { -5.5, -5.5 }, { 5.5, 5.5 } },
-        selection_box         = { { -5.5, -5.5 }, { 5.5, 5.5 } },
+        collision_box         = { { -3.8, -3.8 }, { 3.8, 3.8 } },
+        selection_box         = { { -3.8, -3.8 }, { 3.5, 3.8 } },
         minable               = { mining_time = 0.2, result = "spaceship-control-hub" },
         picture               = {
             layers =
@@ -92,7 +92,7 @@ data:extend({
                     width = 500,
                     height = 500,
                     shift = { 0, 0 },
-                    scale = 1
+                    scale = .65
                 },
             }
         },
