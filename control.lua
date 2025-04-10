@@ -246,6 +246,10 @@ script.on_event(defines.events.on_tick, function(event)
             y = math.floor(player.position.y)
         }
     end
+
+    if game.tick % 10 == 0 and storage.scan_state then
+    SpaceShip.continue_scan_ship()
+    end
 end)
 
 script.on_event(defines.events.on_player_driving_changed_state, function(event)

@@ -183,15 +183,15 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     -- Store the combined renders for later updates
     player.print("Total Renders: " ..
         #combined_renders ..
-        " (combined from " .. table_size(storage.spaceships[storage.opened_entity_id].floor) .. " tiles)")
+        " (combined from " .. table_size(tiles) .. " tiles)")
     return combined_renders
 end
 
 function SpaceShip.ship_takeoff(player)
-    local plat       = player.surface.platform
-    local stationID   = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].selected_index
-    local station     = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].items[stationID]
-    schedual          = {
+    local plat      = player.surface.platform
+    local stationID = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].selected_index
+    local station   = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].items[stationID]
+    schedual        = {
         current = 1,
         records = {
             {
@@ -205,8 +205,8 @@ function SpaceShip.ship_takeoff(player)
             }
         }
     }
-    plat.schedule = schedual
-    plat.paused   = false
+    plat.schedule   = schedual
+    plat.paused     = false
     game.print("Schedule applied and started for:" .. plat.name)
 end
 
@@ -230,7 +230,7 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
     local tiles_to_set = {}
     for _, tile in pairs(storage.spaceships[storage.opened_entity_id].floor) do
         table.insert(tiles_to_set, {
-            name = tile.name,
+            name = "spaceship-flooring",
             position = {
                 x = tile.position.x + offset.x,
                 y = tile.position.y + offset.y
@@ -301,7 +301,7 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
     else
         game.print("Error: No valid hidden tiles to set.")
     end
-    SpaceShip.scan_ship(storage.spaceships[storage.opened_entity_id].player)
+    --SpaceShip.scan_ship(storage.spaceships[storage.opened_entity_id].player)
 end
 
 -- Function to clone the ship to a new space platform surface
@@ -406,14 +406,21 @@ function SpaceShip.clone_ship_to_space_platform(player)
     storage.spaceships[storage.opened_entity_id].hub = entities_in_area[1]
 end
 
--- Function to scan the spaceship
-function SpaceShip.scan_ship(player)
+function SpaceShip.start_scan_ship(player, scan_per_tick)
     if not storage.opened_entity_id then
         player.print("Error: No valid spaceship control hub entity is open.")
         return
     end
+    if storage.scan_state then
+        player.print("Scan is in progress, please wait.")
+        return
+    end
     local temp_entity = player.surface.find_entities_filtered { name = "spaceship-control-hub" }
-    -- Start scanning from the opened entity's position
+    if not temp_entity or #temp_entity == 0 then
+        player.print("Error: No spaceship control hub found.")
+        return
+    end
+
     local surface = temp_entity[1].surface
     local start_pos = temp_entity[1].position
     local tiles_to_check = { start_pos }
@@ -422,39 +429,93 @@ function SpaceShip.scan_ship(player)
     local entities_on_flooring = {}
     local reference_tile = nil -- Initialize reference_tile
     local scan_radius = 200    -- Limit to prevent excessive scans
+
     if not storage.spaceships[storage.opened_entity_id] then
         storage.spaceships[storage.opened_entity_id] = SpaceShip.new("Ship", storage.opened_entity_id, player)
     end
+
     storage.spaceships[storage.opened_entity_id].floor = nil
     storage.spaceships[storage.opened_entity_id].entities = nil
     storage.spaceships[storage.opened_entity_id].reference_tile = nil
     storage.spaceships[storage.opened_entity_id].surface = nil
 
-    -- Initialize a table to store rendering IDs for highlights
-    storage.scan_highlights = storage.scan_highlights or {}
+    -- Initialize scan state
+    storage.scan_state = {
+        player = player,
+        surface = surface,
+        tiles_to_check = tiles_to_check,
+        scanned_tiles = scanned_tiles,
+        flooring_tiles = flooring_tiles,
+        entities_on_flooring = entities_on_flooring,
+        reference_tile = reference_tile,
+        scan_radius = scan_radius,
+        start_pos = start_pos,
+        scan_per_tick = scan_per_tick or 50, -- Default to 1 if not provided
+        tick_counter = 0,                   -- Counter to track ticks for progress updates
+        entity_id = storage.opened_entity_id,
+        tick_amount = 1
+    }
+    -- Start the scanning process
+    script.on_nth_tick(storage.scan_state.tick_amount, SpaceShip.continue_scan_ship)
+    player.print("Ship scan started. Scanning up to " ..
+        storage.scan_state.scan_per_tick .. " tiles per " .. storage.scan_state.tick_amount .. " tick(s).")
+end
 
-    while #tiles_to_check > 0 do
-        local current_pos = table.remove(tiles_to_check)
+function SpaceShip.continue_scan_ship()
+    local state = storage.scan_state
+    if not state or #state.tiles_to_check == 0 then
+        -- Scanning is complete
+        script.on_nth_tick(storage.scan_state.tick_amount, nil) -- Stop the scanning process
+        if state then
+            local temp_entities = {}
+            for _, x in pairs(state.entities_on_flooring) do --check through x tables
+                for _, y in pairs(x) do --check through y values
+                    table.insert(temp_entities,y)
+                end
+            end
+            local player = state.player
+            storage.spaceships[storage.scan_state.entity_id].floor = state.flooring_tiles
+            storage.spaceships[storage.scan_state.entity_id].entities = temp_entities
+            storage.spaceships[storage.scan_state.entity_id].reference_tile = state.reference_tile
+            storage.spaceships[storage.scan_state.entity_id].surface = state.surface
+            storage.spaceships[storage.scan_state.entity_id].scanned = true
+
+            -- Create combined renders for the scanned ship area
+            storage.scan_highlights = SpaceShip.create_combined_renders(player,
+                storage.spaceships[storage.scan_state.entity_id].floor, true, { x = 0, y = 0 })
+            storage.scan_highlight_expire_tick = game.tick + 60
+            player.print("Ship scan completed! Found " ..
+                table_size(state.flooring_tiles) ..
+                " tiles and " .. table_size(temp_entities) .. " entities.")
+        end
+        storage.scan_state = nil
+        return
+    end
+
+    -- Process up to `scan_per_tick` tiles
+    local processed_tiles = 0
+    while processed_tiles < state.scan_per_tick and #state.tiles_to_check > 0 do
+        local current_pos = table.remove(state.tiles_to_check)
 
         -- Use unique coordinates as a key to avoid rescanning
         local tile_key = current_pos.x .. "," .. current_pos.y
-        if scanned_tiles[tile_key] then
+        if state.scanned_tiles[tile_key] then
             goto continue
         end
-        scanned_tiles[tile_key] = true
+        state.scanned_tiles[tile_key] = true
 
         -- Check if the current tile is "spaceship-flooring"
-        local tile = surface.get_tile(current_pos.x, current_pos.y)
+        local tile = state.surface.get_tile(current_pos.x, current_pos.y)
         if tile and tile.name == "spaceship-flooring" then
             -- Store the tile's name and position
-            flooring_tiles[tile_key] = {
+            state.flooring_tiles[tile_key] = {
                 name = tile.name,
                 position = { x = current_pos.x, y = current_pos.y }
             }
 
             -- Set the reference_tile if it hasn't been set yet
-            if not reference_tile then
-                reference_tile = flooring_tiles[tile_key]
+            if not state.reference_tile then
+                state.reference_tile = state.flooring_tiles[tile_key]
             end
 
             -- Find entities directly on this tile
@@ -462,39 +523,42 @@ function SpaceShip.scan_ship(player)
                 { x = current_pos.x - 0.5, y = current_pos.y - 0.5 },
                 { x = current_pos.x + 0.5, y = current_pos.y + 0.5 }
             }
-            local entities = surface.find_entities_filtered({ area = area })
+            local entities = state.surface.find_entities_filtered({ area = area })
             for _, entity in pairs(entities) do
                 if entity.valid and entity.name ~= "spaceship-flooring" then
                     if entity.type ~= "resource" and entity.type ~= "character" then
-                        if not SpaceShipFunctions.table_contains(entities_on_flooring, entity) then
-                            table.insert(entities_on_flooring, entity)
+                        --Make the values if they have not been made yet.
+                        state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or {}
+                        state.entities_on_flooring[entity.position.x][entity.position.y] = state.entities_on_flooring[entity.position.x][entity.position.y] or {}
+                        -- Check if the entity is already stored
+                        local value = state.entities_on_flooring[entity.position.x][entity.position.y]
+                        if value ~= entity then
+                            --Add entity to table[table]
+                            state.entities_on_flooring[entity.position.x][entity.position.y] = entity
                         end
                     end
                 end
             end
 
-            -- Add adjacent tiles to check
-            for _, delta in pairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
-                local neighbor_pos = { x = current_pos.x + delta[1], y = current_pos.y + delta[2] }
-                table.insert(tiles_to_check, neighbor_pos)
+            -- Use get_connected_tiles to find all connected tiles of the wame type in 1 hit, whaaat?!
+            if #state.tiles_to_check == 0 then
+                state.tiles_to_check = state.surface.get_connected_tiles({ x = current_pos.x, y = current_pos.y },{ "spaceship-flooring" })
             end
         end
+        processed_tiles = processed_tiles + 1
         ::continue::
     end
 
-    storage.spaceships[storage.opened_entity_id].floor = flooring_tiles
-    storage.spaceships[storage.opened_entity_id].entities = entities_on_flooring
-    storage.spaceships[storage.opened_entity_id].reference_tile = reference_tile
-    storage.spaceships[storage.opened_entity_id].surface = surface
-    storage.spaceships[storage.opened_entity_id].scanned = true
+    -- Increment the tick counter
+    state.tick_counter = state.tick_counter + 1
 
-    -- Create combined renders for the scanned ship area
-    storage.scan_highlights = SpaceShip.create_combined_renders(player,
-        storage.spaceships[storage.opened_entity_id].floor, true, { x = 0, y = 0 })
-    -- Set the expiration tick for the highlights (1 second = 60 ticks)
-    storage.scan_highlight_expire_tick = game.tick + 60
-    player.print("Ship scan completed! Found " ..
-        table_size(flooring_tiles) .. " tiles and " .. table_size(entities_on_flooring) .. " entities.")
+    -- Print progress every 300 ticks
+    if state.tick_counter % 10 == 0 then
+        local player = state.player
+        local total_tiles = table_size(state.scanned_tiles)
+        local remaining_tiles = #state.tiles_to_check
+        player.print("Scanning progress: " .. total_tiles .. " tiles scanned, " .. remaining_tiles .. " tiles remaining.")
+    end
 end
 
 function SpaceShip.dock_ship(player)

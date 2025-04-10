@@ -1,5 +1,5 @@
 custom gui that uses space hub inventory, that way stuff is hidden
 
 need to do: 
--change scan ship and clone ship to happen over ticks to remove freeze when scanning/cloning
+--fix dock final (not spawning entities)
 -create gui for making auto schedule.

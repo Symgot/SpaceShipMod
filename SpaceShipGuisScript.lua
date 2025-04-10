@@ -60,7 +60,7 @@ end
 function SpaceShipGuis.handle_button_click(player, button_name)
     if button_name == "scan-ship" then  -- Call the scan_ship function
         player.print("Scanning the ship...")
-        SpaceShip.scan_ship(player)
+        SpaceShip.start_scan_ship(player)
     elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
         if storage.spaceships[storage.opened_entity_id].scanned then
             player.print("Spaceship takeoff initiated!")
