@@ -6,12 +6,7 @@ local Travel = require("travel")
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
 
 script.on_event(defines.events.on_gui_click, function(event)
-    local elem = event.element
-    local player = game.get_player(event.player_index)
-    if not (elem and elem.valid) then return end
-
-    -- Delegate button click handling to SpaceShipGuis
-    SpaceShipGuis.handle_button_click(player, elem.name)
+    SpaceShipGuis.handle_button_click(event)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
@@ -164,23 +159,13 @@ script.on_event(defines.events.on_gui_opened, function(event)
     local opened_entity = event.entity
 
     if opened_entity and opened_entity.valid and opened_entity.name == "spaceship-control-hub" then
-        SpaceShipGuis.create_spaceship_gui(player)
         storage.opened_entity_id = opened_entity.unit_number
+        SpaceShipGuis.create_spaceship_gui(player)
     end
 end)
 
 script.on_event(defines.events.on_gui_closed, function(event)
-    local player = game.get_player(event.player_index)
-
-    if event.entity and event.entity.name == "spaceship-control-hub" then
-        -- Destroy the custom GUI when the main GUI for "spaceship-control-hub" is closed.
-        local custom_gui = player.gui.relative["spaceship-controller-extended-gui"]
-        if custom_gui then
-            custom_gui.destroy()
-            storage.opened_entity_id = nil
-            player.print("Custom GUI closed with the main GUI.")
-        end
-    end
+    SpaceShipGuis.close_spaceship_gui(event)
 end)
 
 script.on_event(defines.events.on_tick, function(event)

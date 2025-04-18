@@ -23,6 +23,7 @@ SpaceShip.player_in_cockpit = false
 SpaceShip.taking_off        = false
 SpaceShip.own_surface       = false
 SpaceShip.planet_orbiting   = nil
+SpaceShip.schedule          = {}
 
 -- Constructor for creating a new SpaceShip
 function SpaceShip.new(name, id, player)
@@ -43,6 +44,7 @@ function SpaceShip.new(name, id, player)
     self.taking_off        = false
     self.own_surface       = false
     self.planet_orbiting   = nil
+    self.schedule          = {}
 
     -- Store the spaceship in the global storage
     return self
@@ -188,10 +190,12 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
 end
 
 function SpaceShip.ship_takeoff(player)
-    local plat      = player.surface.platform
-    local stationID = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].selected_index
-    local station   = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"].items[stationID]
-    schedual        = {
+    local plat                                            = player.surface.platform
+    local stationID                                       = player.gui.relative["spaceship-controller-extended-gui"]
+        ["surface-dropdown"].selected_index
+    local station                                         = player.gui.relative["spaceship-controller-extended-gui"]
+        ["surface-dropdown"].items[stationID]
+    schedual                                              = {
         current = 1,
         records = {
             {
@@ -205,9 +209,47 @@ function SpaceShip.ship_takeoff(player)
             }
         }
     }
-    plat.schedule   = schedual
-    plat.paused     = false
+    storage.spaceships[storage.opened_entity_id].schedule = schedual
+    plat.schedule                                         = schedual
+    plat.paused                                           = false
     game.print("Schedule applied and started for:" .. plat.name)
+end
+
+function SpaceShip.add_or_change_station(ship, to, from)
+    ship.schedule = ship.schedule or {}
+    if not ship.schedule.current then
+        ship.schedule.current = 1 --default to 1 of not already set
+    end
+    if ship.schedule.records and ship.schedule.records[to] then
+        ship.schedule.records[to] = from
+    elseif ship.schedule.records then
+        record =
+        {
+            station = "nauvis",
+            wait_conditions = {
+                { type = "time", compare_type = "and", ticks = 600 }
+            },
+            temporary = true,
+            created_by_interrupt = false,
+            allows_unloading = false
+        }
+        table.insert(ship.schedule.records, record)
+    else
+        ship.schedule.records = {
+            {
+                station = "nauvis",
+                wait_conditions = {
+                    { type = "time", compare_type = "and", ticks = 600 }
+                },
+                temporary = true,
+                created_by_interrupt = false,
+                allows_unloading = false
+            }
+        }
+    end
+    if ship.platform then
+        ship.platform.schedule = ship.schedule
+    end
 end
 
 -- Clone all tiles and entities from the old ship to the new ship
@@ -451,7 +493,7 @@ function SpaceShip.start_scan_ship(player, scan_per_tick)
         scan_radius = scan_radius,
         start_pos = start_pos,
         scan_per_tick = scan_per_tick or 50, -- Default to 1 if not provided
-        tick_counter = 0,                   -- Counter to track ticks for progress updates
+        tick_counter = 0,                    -- Counter to track ticks for progress updates
         entity_id = storage.opened_entity_id,
         tick_amount = 1
     }
@@ -469,8 +511,8 @@ function SpaceShip.continue_scan_ship()
         if state then
             local temp_entities = {}
             for _, x in pairs(state.entities_on_flooring) do --check through x tables
-                for _, y in pairs(x) do --check through y values
-                    table.insert(temp_entities,y)
+                for _, y in pairs(x) do                      --check through y values
+                    table.insert(temp_entities, y)
                 end
             end
             local player = state.player
@@ -528,8 +570,10 @@ function SpaceShip.continue_scan_ship()
                 if entity.valid and entity.name ~= "spaceship-flooring" then
                     if entity.type ~= "resource" and entity.type ~= "character" then
                         --Make the values if they have not been made yet.
-                        state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or {}
-                        state.entities_on_flooring[entity.position.x][entity.position.y] = state.entities_on_flooring[entity.position.x][entity.position.y] or {}
+                        state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or
+                            {}
+                        state.entities_on_flooring[entity.position.x][entity.position.y] = state.entities_on_flooring
+                            [entity.position.x][entity.position.y] or {}
                         -- Check if the entity is already stored
                         local value = state.entities_on_flooring[entity.position.x][entity.position.y]
                         if value ~= entity then
@@ -542,7 +586,8 @@ function SpaceShip.continue_scan_ship()
 
             -- Use get_connected_tiles to find all connected tiles of the wame type in 1 hit, whaaat?!
             if #state.tiles_to_check == 0 then
-                state.tiles_to_check = state.surface.get_connected_tiles({ x = current_pos.x, y = current_pos.y },{ "spaceship-flooring" })
+                state.tiles_to_check = state.surface.get_connected_tiles({ x = current_pos.x, y = current_pos.y },
+                    { "spaceship-flooring" })
             end
         end
         processed_tiles = processed_tiles + 1

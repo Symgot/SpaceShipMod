@@ -2,4 +2,30 @@ custom gui that uses space hub inventory, that way stuff is hidden
 
 need to do: 
 --fix dock final (not spawning entities)
+--add check to takeoff to make sure platform is on its won surface
+
 -create gui for making auto schedule.
+change storage.spaceship.schedule to new structur as listed below.
+
+
+
+
+
+storage.spaceship structure
+{
+    walls = {}--not used yet
+    name = string
+    id = int
+    player = person who created it
+    scanned = bool (need to scan to log ship info, should be fired any time the ship changes)
+    player_in_cockpit = bool (for telling if ship is being manipulated by player or in auto)
+    taking_off = bool (should be renamed to docking)
+    own_surface = bool (check if ship is on its own surface before letting it do automatic stuff)
+    hub = entity
+    schedule = {name,schedule{base game}} (used for automation and saving info between docking)
+    floor = {positions} (tile positions)
+    entities = {entities} (we need this to clone all entities)(count be changed later to make it scan when docking/undocking if more efficient)
+    referance_tile = {x,y} (pick first tile found when scanning to use for referance later)
+    surface = LuaSurface
+    planet_orbiting = string (need to know this for automation, could potentialy use surface to get it as well if more efficient.)
+}
