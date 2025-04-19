@@ -3,9 +3,12 @@ custom gui that uses space hub inventory, that way stuff is hidden
 need to do: 
 --fix dock final (not spawning entities)
 --add check to takeoff to make sure platform is on its won surface
+--change the gui captions to the ones in core/locale/en/core.cfg were viable
+--fix planet indicator for stations
 
 -create gui for making auto schedule.
-change storage.spaceship.schedule to new structur as listed below.
+--Add check to see if auto and if all conditions are met for the planets its planet_orbiting
+--if both are true, launch ship into travel mode and start the schedule
 
 
 

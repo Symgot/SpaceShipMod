@@ -5,153 +5,81 @@ local Travel = require("travel")
 
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
 
+local function handle_built_entity(entity, player)
+    if not (entity and entity.valid) then return end
+
+    local surface = entity.surface
+
+    -- Spawn the car on the spaceship controller:
+    if entity.name == "spaceship-control-hub" then
+        storage.spaceships = storage.spaceships or {}
+        local count = table_size(storage.spaceships) + 1
+        local my_ship = SpaceShip.new("Explorer" .. count, count, player)
+        my_ship.hub = entity
+        storage.spaceships[entity.unit_number] = my_ship
+        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
+        local car = surface.create_entity {
+            name = "spaceship-control-hub-car",
+            position = car_position,
+            force = entity.force
+        }
+        if car then
+            car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
+            player.print("Spaceship control hub car spawned!")
+        else
+            player.print("Error: Unable to spawn spaceship control hub car!")
+        end
+    end
+end
+
+local function handle_mined_entity(entity)
+    if not (entity and entity.valid) then return end
+    -- Remove the car associated with the mined hub
+    if entity.name == "spaceship-control-hub" then
+        local area = {
+            { entity.position.x - 2, entity.position.y },
+            { entity.position.x + 2, entity.position.y + 6 }
+        }
+        local cars = entity.surface.find_entities_filtered {
+            area = area,
+            name = "spaceship-control-hub-car"
+        }
+        for _, car in pairs(cars) do
+            car.destroy()
+        end
+        storage.spaceships[entity.unit_number] = nil
+    end
+end
+
 script.on_event(defines.events.on_gui_click, function(event)
     SpaceShipGuis.handle_button_click(event)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-
-    local surface = entity.surface
-
-    -- Spawn the car on the spaceship controller:
-    if entity.name == "spaceship-control-hub" then
-        local player = game.get_player(event.player_index)
-        storage.spaceships = storage.spaceships or {}
-        count = table_size(storage.spaceships) + 1
-        local my_ship = SpaceShip.new("Explorer" .. count, (table_size(storage.spaceships) + 1), player)
-        my_ship.hub = entity
-        storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
-        local car = surface.create_entity {
-            name = "spaceship-control-hub-car",
-            position = car_position,
-            force = entity.force
-        }
-        if car then
-            car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
-            player.print("Spaceship control hub car spawned!")
-        else
-            player.print("Error: Unable to spawn spaceship control hub car!")
-        end
-    end
+    local player = game.get_player(event.player_index)
+    handle_built_entity(event.entity, player)
 end)
 
 script.on_event(defines.events.on_robot_built_entity, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-
-    local surface = entity.surface
-
-    -- Spawn the car on the spaceship controller:
-    if entity.name == "spaceship-control-hub" then
-        local player = game.get_player(event.robot.force.players[1].index)
-        storage.spaceships = storage.spaceships or {}
-        local my_ship = SpaceShip.new("Explorer" .. (#storage.spaceships + 1), (#storage.spaceships + 1), player)
-        my_ship.hub = entity
-        storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
-        local car = surface.create_entity {
-            name = "spaceship-control-hub-car",
-            position = car_position,
-            force = entity.force
-        }
-        if car then
-            car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
-            player.print("Spaceship control hub car spawned!")
-        else
-            player.print("Error: Unable to spawn spaceship control hub car!")
-        end
-    end
+    local player = game.get_player(event.robot.force.players[1].index)
+    handle_built_entity(event.entity, player)
 end)
 
-script.on_event(defines.events.on_space_platform_built_entity,function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-
-    local surface = entity.surface
-
-    -- Spawn the car on the spaceship controller:
-    if entity.name == "spaceship-control-hub" then
-        local player = game.get_player(event.platform.force.players[1].index)
-        storage.spaceships = storage.spaceships or {}
-        local my_ship = SpaceShip.new("Explorer" .. (#storage.spaceships + 1), (#storage.spaceships + 1), player)
-        my_ship.hub = entity
-        storage.spaceships[entity.unit_number] = my_ship
-        local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
-        local car = surface.create_entity {
-            name = "spaceship-control-hub-car",
-            position = car_position,
-            force = entity.force
-        }
-        if car then
-            car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
-            player.print("Spaceship control hub car spawned!")
-        else
-            player.print("Error: Unable to spawn spaceship control hub car!")
-        end
-    end
+script.on_event(defines.events.on_space_platform_built_entity, function(event)
+    local player = game.get_player(event.platform.force.players[1].index)
+    handle_built_entity(event.entity, player)
 end)
 
 script.on_event(defines.events.on_player_mined_entity, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-    -- Remove the car associated with the mined hub
-    if entity.name == "spaceship-control-hub" then
-        local area = {
-            { entity.position.x - 2, entity.position.y },
-            { entity.position.x + 2, entity.position.y + 6 }
-        }
-        local cars = entity.surface.find_entities_filtered {
-            area = area,
-            name = "spaceship-control-hub-car"
-        }
-        for _, car in pairs(cars) do
-            car.destroy()
-        end
-        storage.spaceships[entity.unit_number] = nil
-    end
+    handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_robot_mined_entity, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-    -- Remove the car associated with the mined hub
-    if entity.name == "spaceship-control-hub" then
-        local area = {
-            { entity.position.x - 2, entity.position.y },
-            { entity.position.x + 2, entity.position.y + 6 }
-        }
-        local cars = entity.surface.find_entities_filtered {
-            area = area,
-            name = "spaceship-control-hub-car"
-        }
-        for _, car in pairs(cars) do
-            car.destroy()
-        end
-        storage.spaceships[entity.unit_number] = nil
-    end
+    handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_space_platform_mined_entity, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-    -- Remove the car associated with the mined hub
-    if entity.name == "spaceship-control-hub" then
-        local area = {
-            { entity.position.x - 2, entity.position.y },
-            { entity.position.x + 2, entity.position.y + 6 }
-        }
-        local cars = entity.surface.find_entities_filtered {
-            area = area,
-            name = "spaceship-control-hub-car"
-        }
-        for _, car in pairs(cars) do
-            car.destroy()
-        end
-        storage.spaceships[entity.unit_number] = nil
-    end
+    handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_gui_opened, function(event)
@@ -188,9 +116,9 @@ script.on_event(defines.events.on_tick, function(event)
     end
 
     if storage.SpaceShip and storage.SpaceShip[storage.opened_entity_id].scanned then
-        return -- Exit f ship_data or reference_tile is missing
+        goto continue
     end
-    if not storage.spaceships or not storage.spaceships[storage.opened_entity_id] then return end
+    if not storage.spaceships or not storage.spaceships[storage.opened_entity_id] then goto continue end
     if game.tick % 10 == 0 and
         storage.spaceships and
         storage.opened_entity_id and
@@ -231,9 +159,25 @@ script.on_event(defines.events.on_tick, function(event)
             y = math.floor(player.position.y)
         }
     end
-
+    ::continue::
     if game.tick % 10 == 0 and storage.scan_state then
-    SpaceShip.continue_scan_ship()
+        SpaceShip.continue_scan_ship()
+    end
+
+    if game.tick % 60 == 0 then
+        for _, ship in pairs(storage.spaceships or {}) do
+            -- Check if ship has a condition GUI
+            if ship.condition_gui and ship.condition_gui.frame.valid then
+                local condition_flow = ship.condition_gui.condition_flow
+                if condition_flow then
+                    for _, condition_frame in pairs(condition_flow.children) do
+                        if condition_frame.name:match("^condition_row_%d+$") then
+                            SpaceShipGuis.check_condition_row(condition_frame)
+                        end
+                    end
+                end
+            end
+        end
     end
 end)
 
@@ -241,31 +185,24 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
     local player = game.get_player(event.player_index)
     if not player then return end
 
-    local vehicle = player.vehicle
+    local vehicle = event.entity
+    if not vehicle or not vehicle.valid then return end
 
-    if vehicle and vehicle.valid and vehicle.name == "spaceship-control-hub-car" then
-        -- Player entered the cockpit, open the GUI
-        SpaceShipGuis.create_spaceship_gui(player)
-    else
-        -- Player exited the cockpit, close all GUIs
-        SpaceShipGuis.close_spaceship_gui(player)
-    end
-end)
-
-script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-    local player = game.get_player(event.player_index)
-    if not player or not player.valid then return end
-
-    local element = event.element
-    if element and element.valid and element.name == "surface-dropdown" then
-        SpaceShipGuis.handle_dropdown_selection(player, element.name, element.selected_index)
+    if vehicle.name == "spaceship-control-hub-car" then
+        -- Player entered/exited the cockpit
+        if player.vehicle then
+            -- Player entered the cockpit
+            SpaceShipGuis.create_spaceship_gui(player)
+        end
+    elseif vehicle.name == "space-platform-hub" then
+        player.leave_space_platform()
     end
 end)
 
 script.on_event(defines.events.on_selected_entity_changed, function(event)
     local player = game.get_player(event.player_index)
     if not player or not player.valid then return end
-    
+
     local selected_entity = player.selected -- The entity the player is currently hovering over
 
     -- Check if the player is hovering over the spaceship-control-hub
@@ -288,7 +225,7 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
                     else
                         value = "false"
                     end
-                    hovering_gui.add { type = "label", ame = key .. tostring(value), caption = key .. ":" .. tostring(value) }
+                    hovering_gui.add { type = "label", name = key .. tostring(value), caption = key .. ":" .. tostring(value) }
                 elseif key == "surface" then
                     hovering_gui.add { type = "label", name = key .. tostring(value), caption = key .. ":" .. tostring(value.name) }
                 end
@@ -302,7 +239,6 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
         end
     end
 end)
-
 
 script.on_event(defines.events.on_entity_died, function(event)
     local entity = event.entity
@@ -323,24 +259,38 @@ script.on_event(defines.events.on_entity_died, function(event)
     end
 end)
 
-script.on_event(defines.events.on_player_driving_changed_state, function (event)
-    local player = game.get_player(event.player_index)
-    if event.entity.name == "space-platform-hub" then
-        player.leave_space_platform()
-    end
-end)
-
-script.on_event(defines.events.on_space_platform_changed_state, function (event)
+script.on_event(defines.events.on_space_platform_changed_state, function(event)
     local plat = event.platform
     if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
-        game.print("Spaceship Explorer 1 has been changed state to:".. plat.state)
-        hub = plat.surface.find_entities_filtered{name = "spaceship-control-hub"}
+        game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
+        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         ship = storage.spaceships[hub[1].unit_number]
         ship.planet_orbiting = plat.space_location.name
     elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
-        game.print("Spaceship Explorer 1 has been changed state to:".. plat.state)
-        hub = plat.surface.find_entities_filtered{name = "spaceship-control-hub"}
+        game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
+        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         ship = storage.spaceships[hub[1].unit_number]
         ship.planet_orbiting = "none"
     end
+end)
+
+
+-- Add handlers for signal chooser and value changes
+script.on_event(defines.events.on_gui_elem_changed, function(event)
+    if event.element.name == "condition_type_chooser" then
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+    end
+end)
+
+script.on_event(defines.events.on_gui_text_changed, function(event)
+    if event.element.name:match("^condition_value_%d+$") then
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+    end
+end)
+
+script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+    if event.element.name:match("^comparison_dropdown_%d+$") then
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+    end
+    SpaceShipGuis.handle_dropdown_selection(event)
 end)

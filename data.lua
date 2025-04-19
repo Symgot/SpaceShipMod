@@ -70,20 +70,23 @@ floorRecipe.main_product = "spaceship-flooring"
 
 data:extend({
     {
-        type                  = "container",
-        name                  = "spaceship-control-hub",
-        localised_name        = "Spaceship Control Hub",
-        localised_description = "Main control hub for the spaceship.",
-        placeable_by          = data.raw["item"]["spaceship-control-hub"],
-        flags                 = { "placeable-neutral", "player-creation", "not-rotatable" },
-        icon                  = data.raw["space-platform-hub"]["space-platform-hub"].icon,
-        inventory_size        = 50,
-        create_ghost_on_death = true,
-        surface_conditions    = nil,
-        collision_box         = { { -3.8, -3.8 }, { 3.8, 3.8 } },
-        selection_box         = { { -3.8, -3.8 }, { 3.5, 3.8 } },
-        minable               = { mining_time = 0.2, result = "spaceship-control-hub" },
-        picture               = {
+        type                      = "container",
+        name                      = "spaceship-control-hub",
+        localised_name            = "Spaceship Control Hub",
+        localised_description     = "Main control hub for the spaceship.",
+        placeable_by              = data.raw["item"]["spaceship-control-hub"],
+        flags                     = { "placeable-neutral", "player-creation", "not-rotatable" },
+        icon                      = data.raw["space-platform-hub"]["space-platform-hub"].icon,
+        circuit_connector         = data.raw["container"]["iron-chest"].circuit_connector,
+        circuit_wire_max_distance = data.raw["container"]["iron-chest"].circuit_wire_max_distance,
+        draw_circuit_wires        = true,
+        inventory_size            = 50,
+        create_ghost_on_death     = true,
+        surface_conditions        = nil,
+        collision_box             = { { -3.8, -3.8 }, { 3.8, 3.8 } },
+        selection_box             = { { -3.8, -3.8 }, { 3.5, 3.8 } },
+        minable                   = { mining_time = 0.2, result = "spaceship-control-hub" },
+        picture                   = {
             layers =
             {
                 {

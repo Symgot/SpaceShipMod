@@ -201,7 +201,20 @@ function SpaceShip.ship_takeoff(player)
             {
                 station = station,
                 wait_conditions = {
-                    { type = "time", compare_type = "and", ticks = 600 }
+                    {
+                        type = "circuit",
+                        compare_type = "and",
+                        condition =
+                        {
+                            first_signal =
+                            {
+                                type = "virtual",
+                                name = "signal-A"
+                            },
+                            comparator = ">",
+                            constant = 10
+                        }
+                    }
                 },
                 temporary = true,
                 created_by_interrupt = false,
@@ -223,23 +236,49 @@ function SpaceShip.add_or_change_station(ship, to, from)
     if ship.schedule.records and ship.schedule.records[to] then
         ship.schedule.records[to] = from
     elseif ship.schedule.records then
-        record =
+        records =
         {
             station = "nauvis",
             wait_conditions = {
-                { type = "time", compare_type = "and", ticks = 600 }
+                {
+                    type = "circuit",
+                    compare_type = "and",
+                    condition =
+                    {
+                        first_signal =
+                        {
+                            type = "virtual",
+                            name = "signal-A"
+                        },
+                        comparator = ">",
+                        constant = 10
+                    }
+                }
             },
             temporary = true,
             created_by_interrupt = false,
             allows_unloading = false
         }
-        table.insert(ship.schedule.records, record)
+        table.insert(ship.schedule.records, records)
     else
         ship.schedule.records = {
             {
                 station = "nauvis",
                 wait_conditions = {
-                    { type = "time", compare_type = "and", ticks = 600 }
+                    {
+                        type = "circuit",
+                        compare_type = "and",
+                        condition =
+                        {
+                            first_signal =
+                            {
+                                type = "virtual",
+                                name = "signal-A"
+                            },
+                            comparator = ">",
+                            constant = 10
+                        }
+                    }
                 },
                 temporary = true,
                 created_by_interrupt = false,
@@ -431,8 +470,6 @@ function SpaceShip.clone_ship_to_space_platform(player)
     end
 
     if control_hub_car and control_hub_car.valid then
-        -- Restore the player's body
-
         -- Teleport the player to the control hub car and make them enter it
         player.teleport(control_hub_car.position, control_hub_car.surface)
         player.driving = true -- Make the player enter the vehicle
@@ -441,11 +478,20 @@ function SpaceShip.clone_ship_to_space_platform(player)
         player.print("Error: Unable to find the spaceship control hub car at the destination.")
     end
 
+    local entities_in_area2 = space_platform.surface.find_entities_filtered({
+        area = search_area,
+        name = "spaceship-control-hub"
+    })
+
+    if #entities_in_area2 > 0 then
+        control_hub_car = entities_in_area2[1] -- Assume the first found entity is the control hub car
+    end
+
     player.print("Ship successfully cloned to the new space platform: ")
     storage.spaceships[storage.opened_entity_id].own_surface = true
     storage.spaceships[storage.opened_entity_id].planet_orbiting = OG_surface
     storage.spaceships[storage.opened_entity_id].surface = space_platform.surface
-    storage.spaceships[storage.opened_entity_id].hub = entities_in_area[1]
+    storage.spaceships[storage.opened_entity_id].hub = entities_in_area2[1]
 end
 
 function SpaceShip.start_scan_ship(player, scan_per_tick)
@@ -809,6 +855,60 @@ function SpaceShip.cancel_dock(player)
 
     player.print("Takeoff canceled. Returning to the ship.")
     storage.spaceships[storage.opened_entity_id].taking_off = false -- Reset the taking off flag
+end
+
+function SpaceShip.read_circuit_signals(entity)
+    -- Get the circuit network for red and green wires
+    local red_network = entity.get_circuit_network(defines.wire_type.red)
+    local green_network = entity.get_circuit_network(defines.wire_type.green)
+
+    local signals = {}
+
+    -- Read signals from red wire
+    if red_network then
+        local red_signals = red_network.signals
+        if red_signals then
+            for _, signal in pairs(red_signals) do
+                -- Signal structure: {signal = {type="item", name="iron-plate"}, count = 42}
+                signals[signal.signal.name] = signals[signal.signal.name] or 0
+                signals[signal.signal.name] = signals[signal.signal.name] + signal.count
+            end
+        end
+    end
+
+    -- Read signals from green wire
+    if green_network then
+        local green_signals = green_network.signals
+        if green_signals then
+            for _, signal in pairs(green_signals) do
+                signals[signal.signal.name] = signals[signal.signal.name] or 0
+                signals[signal.signal.name] = signals[signal.signal.name] + signal.count
+            end
+        end
+    end
+
+    return signals
+end
+
+-- Example usage:
+function SpaceShip.check_circuit_condition(entity, signal_name, comparison, value)
+    local signals = SpaceShip.read_circuit_signals(entity)
+    local signal_value = signals[signal_name] or 0
+
+    -- Compare the signal value based on the comparison operator
+    if comparison == "<" then
+        return signal_value < value
+    elseif comparison == "<=" then
+        return signal_value <= value
+    elseif comparison == "=" then
+        return signal_value == value
+    elseif comparison == ">=" then
+        return signal_value >= value
+    elseif comparison == ">" then
+        return signal_value > value
+    end
+
+    return false
 end
 
 return SpaceShip
