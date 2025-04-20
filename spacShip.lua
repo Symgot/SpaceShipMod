@@ -15,15 +15,17 @@ SpaceShip.walls             = {}                         -- Table to store wall 
 SpaceShip.entities          = {}                         -- Table to store entities
 SpaceShip.name              = nil or "Unnamed SpaceShip" -- Name of the spaceship
 SpaceShip.id                = nil or 0                   -- Unique ID for the spaceship
-SpaceShip.player            = nil                        -- Reference to the player prototype
+SpaceShip.player_owner      = nil                        -- Reference to the player prototype
 SpaceShip.referance_tile    = nil
 SpaceShip.surface           = nil
 SpaceShip.scanned           = false
-SpaceShip.player_in_cockpit = false
+SpaceShip.player_in_cockpit = nil
 SpaceShip.taking_off        = false
 SpaceShip.own_surface       = false
 SpaceShip.planet_orbiting   = nil
 SpaceShip.schedule          = {}
+SpaceShip.traveling         = false
+SpaceShip.automatic         = false
 
 -- Constructor for creating a new SpaceShip
 function SpaceShip.new(name, id, player)
@@ -40,11 +42,13 @@ function SpaceShip.new(name, id, player)
     self.referance_tile    = nil
     self.surface           = nil
     self.scanned           = false
-    self.player_in_cockpit = false
+    self.player_in_cockpit = nil
     self.taking_off        = false
     self.own_surface       = false
     self.planet_orbiting   = nil
     self.schedule          = {}
+    self.traveling         = false
+    self.automatic         = false
 
     -- Store the spaceship in the global storage
     return self
@@ -62,7 +66,7 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
 
     if not scan then
         -- Calculate the offset to make the reference tile start at (0, 0)
-        local reference_tile = storage.spaceships[storage.opened_entity_id].reference_tile
+        local reference_tile = ship.reference_tile
         if not reference_tile then
             player.print("Error: Reference tile is missing from ship data.")
             return
@@ -189,13 +193,13 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     return combined_renders
 end
 
-function SpaceShip.ship_takeoff(player)
-    local plat                                            = player.surface.platform
-    local stationID                                       = player.gui.relative["spaceship-controller-extended-gui"]
+function SpaceShip.ship_takeoff(ship)
+    local plat      = player.surface.platform
+    local stationID = player.gui.relative["spaceship-controller-extended-gui"]
         ["surface-dropdown"].selected_index
-    local station                                         = player.gui.relative["spaceship-controller-extended-gui"]
+    local station   = player.gui.relative["spaceship-controller-extended-gui"]
         ["surface-dropdown"].items[stationID]
-    schedual                                              = {
+    schedual        = {
         current = 1,
         records = {
             {
@@ -222,9 +226,9 @@ function SpaceShip.ship_takeoff(player)
             }
         }
     }
-    storage.spaceships[storage.opened_entity_id].schedule = schedual
-    plat.schedule                                         = schedual
-    plat.paused                                           = false
+    ship.schedule   = schedual
+    plat.schedule   = schedual
+    plat.paused     = false
     game.print("Schedule applied and started for:" .. plat.name)
 end
 
@@ -292,9 +296,10 @@ function SpaceShip.add_or_change_station(ship, to, from)
 end
 
 -- Clone all tiles and entities from the old ship to the new ship
-function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, excluded_types)
+function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_types)
+    local src_surface = ship.surface.platform.surface
     -- Caate the offset between the source and destination areas
-    local reference_tile = storage.spaceships[storage.opened_entity_id].reference_tile
+    local reference_tile = ship.reference_tile
     if not reference_tile then
         error("Reference tile is missing from ship data.")
     end
@@ -309,7 +314,7 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
 
     -- Clone tiles
     local tiles_to_set = {}
-    for _, tile in pairs(storage.spaceships[storage.opened_entity_id].floor) do
+    for _, tile in pairs(ship.floor) do
         table.insert(tiles_to_set, {
             name = "spaceship-flooring",
             position = {
@@ -321,7 +326,7 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
     dest_surface.set_tiles(tiles_to_set)
     -- Filter entities to exclude certain types
     local entities_to_clone = {}
-    for _, entity in pairs(storage.spaceships[storage.opened_entity_id].entities) do
+    for _, entity in pairs(ship.entities) do
         if entity.valid and not excluded_types[entity.type] then
             table.insert(entities_to_clone, entity)
         end
@@ -349,14 +354,10 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
     if #entities_in_area > 0 then
         control_hub = entities_in_area[1] -- Assume the first found entity is the control hub
     end
-    if control_hub.unit_number ~= storage.opened_entity_id then
-        storage.spaceships[control_hub.unit_number] = storage.spaceships[storage.opened_entity_id]
-        storage.spaceships[storage.opened_entity_id] = nil
-        storage.opened_entity_id = control_hub.unit_number
-    end
+    ship.hub = control_hub
 
     -- Remove entities from the original surface
-    for _, entity in pairs(storage.spaceships[storage.opened_entity_id].entities) do
+    for _, entity in pairs(ship.entities) do
         if entity and entity.valid then
             entity.destroy()
         end
@@ -364,7 +365,7 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
 
     -- Change tiles in the original area to hidden tiles
     local hidden_tiles_to_set = {}
-    for _, tile in pairs(storage.spaceships[storage.opened_entity_id].floor) do
+    for _, tile in pairs(ship.floor) do
         local hidden_tile_name = src_surface.get_hidden_tile({ x = tile.position.x, y = tile.position.y })
         if hidden_tile_name then
             table.insert(hidden_tiles_to_set, {
@@ -382,45 +383,36 @@ function SpaceShip.clone_ship_area(src_surface, dest_surface, dest_center, exclu
     else
         game.print("Error: No valid hidden tiles to set.")
     end
-    --SpaceShip.scan_ship(storage.spaceships[storage.opened_entity_id].player)
+    --SpaceShip.scan_ship(ship.player)
 end
 
 -- Function to clone the ship to a new space platform surface
-function SpaceShip.clone_ship_to_space_platform(player)
+function SpaceShip.clone_ship_to_space_platform(ship)
     -- Ensure the player is valid
-    if not player or not player.valid then
-        player.print("Error: Invalid player.")
+    if not ship or not ship.player or not ship.player.valid then
+        ship.player.print("Error: Invalid player.")
         return
     end
 
-    if not storage.spaceships[storage.opened_entity_id].scanned then
-        player.print("Error: No scanned ship data found. Run a ship scan first.")
+    if not ship.scanned then
+        ship.player.print("Error: No scanned ship data found. Run a ship scan first.")
         return
     end
 
     local space_platform_temp
-    for _, surface in pairs(player.force.platforms) do
+    for _, surface in pairs(ship.player.force.platforms) do
         space_platform_temp = surface
         break
     end
-    --[[
-    -- Create a new space platform surface
-    local platform_name = "SpaceShip" .. storage.spaceships[storage.opened_entity_id].name
-    local space_platform = game.create_surface(platform_name, space_platform_temp.surface.map_gen_settings)
-    space_platform.set_property("pressure", 0)
-    if not space_platform then
-        player.print("Error: Failed to create a new space platform surface.")
-        return
-    end]] --
 
-    local space_platform = player.force.create_space_platform({
-        name = "SpaceShip" .. storage.spaceships[storage.opened_entity_id].name,
+    local space_platform = ship.player.force.create_space_platform({
+        name = "SpaceShip" .. ship.name,
         map_gen_settings = space_platform_temp.surface.map_gen_settings,
-        planet = player.surface.platform.space_location.name,
+        planet = ship.planet_orbiting,
         starter_pack = "space-ship-starter-pack",
     })
     space_platform.apply_starter_pack()
-    temp_entities = space_platform.surface.find_entities_filtered { name = "spaceship-control-hub" }
+    temp_entities = space_platform.surface.find_entities_filtered { area = {{-50, -50}, {50, 50}},name = "spaceship-control-hub" }
     temp_entities[1].destroy()
     -- Define the destination center position
     local dest_center = { x = 0, y = 0 }
@@ -430,53 +422,65 @@ function SpaceShip.clone_ship_to_space_platform(player)
         ["logistic-robot"] = true,
         ["construction-robot"] = true,
     }
-
-    -- Teleport the player to the new space platform surface
-    player.teleport(dest_center, space_platform.surface)
     local OG_surface
-    if storage.spaceships[storage.opened_entity_id].surface.platform then
-        OG_surface = storage.spaceships[storage.opened_entity_id].surface.platform.space_location.name
+    if ship.surface.platform then
+        OG_surface = ship.surface.platform.space_location.name
     else
-        OG_surface = storage.spaceships[storage.opened_entity_id].surface.name
+        OG_surface = ship.surface.name
     end
+
     -- Clone the ship area to the new space platform surface
-    if storage.spaceships[storage.opened_entity_id].surface.platform.surface then
-        SpaceShip.clone_ship_area(storage.spaceships[storage.opened_entity_id].surface.platform.surface,
+    if ship.surface.platform.surface then
+        SpaceShip.clone_ship_area(
+            ship,
             space_platform.surface,
             dest_center,
             excluded_types)
-    elseif storage.spaceships[storage.opened_entity_id].surface.surface then
-        SpaceShip.clone_ship_area(storage.spaceships[storage.opened_entity_id].surface.surface,
+    elseif ship.surface.surface then
+        SpaceShip.clone_ship_area(
+            ship,
             space_platform.surface,
             dest_center,
             excluded_types)
     end
 
-    -- Teleport the player to the spaceship control hub car and make them enter it
-    local control_hub_car
+    if ship.player_in_cockpit then
+        -- Teleport the player to the new space platform surface
+        ship.player_in_cockpit.teleport(dest_center, space_platform.surface)
+
+
+
+        -- Teleport the player to the spaceship control hub car and make them enter it
+        local control_hub_car
+        local search_area = {
+            { x = dest_center.x - 50, y = dest_center.y - 50 }, -- Define a reasonable search area around the cloned ship
+            { x = dest_center.x + 50, y = dest_center.y + 50 }
+        }
+
+        -- Search for the spaceship-control-hub-car in the newly cloned ship
+        local entities_in_area = space_platform.surface.find_entities_filtered({
+            area = search_area,
+            name = "spaceship-control-hub-car"
+        })
+
+        if #entities_in_area > 0 then
+            control_hub_car = entities_in_area[1] -- Assume the first found entity is the control hub car
+        end
+
+        if control_hub_car and control_hub_car.valid then
+            -- Teleport the player to the control hub car and make them enter it
+            ship.player_in_cockpit.teleport(control_hub_car.position, control_hub_car.surface)
+            ship.player_in_cockpit.driving = true -- Make the player enter the vehicle
+            ship.player_in_cockpit.print("You have entered the spaceship control hub car at the destination.")
+        else
+            ship.player_in_cockpit.print("Error: Unable to find the spaceship control hub car at the destination.")
+        end
+    end
+
     local search_area = {
         { x = dest_center.x - 50, y = dest_center.y - 50 }, -- Define a reasonable search area around the cloned ship
         { x = dest_center.x + 50, y = dest_center.y + 50 }
     }
-
-    -- Search for the spaceship-control-hub-car in the newly cloned ship
-    local entities_in_area = space_platform.surface.find_entities_filtered({
-        area = search_area,
-        name = "spaceship-control-hub-car"
-    })
-
-    if #entities_in_area > 0 then
-        control_hub_car = entities_in_area[1] -- Assume the first found entity is the control hub car
-    end
-
-    if control_hub_car and control_hub_car.valid then
-        -- Teleport the player to the control hub car and make them enter it
-        player.teleport(control_hub_car.position, control_hub_car.surface)
-        player.driving = true -- Make the player enter the vehicle
-        player.print("You have entered the spaceship control hub car at the destination.")
-    else
-        player.print("Error: Unable to find the spaceship control hub car at the destination.")
-    end
 
     local entities_in_area2 = space_platform.surface.find_entities_filtered({
         area = search_area,
@@ -488,22 +492,24 @@ function SpaceShip.clone_ship_to_space_platform(player)
     end
 
     player.print("Ship successfully cloned to the new space platform: ")
-    storage.spaceships[storage.opened_entity_id].own_surface = true
-    storage.spaceships[storage.opened_entity_id].planet_orbiting = OG_surface
-    storage.spaceships[storage.opened_entity_id].surface = space_platform.surface
-    storage.spaceships[storage.opened_entity_id].hub = entities_in_area2[1]
+    ship.own_surface = true
+    ship.planet_orbiting = OG_surface
+    ship.surface = space_platform.surface
+    ship.hub = entities_in_area2[1]
+    ship.traveling = true
 end
 
-function SpaceShip.start_scan_ship(player, scan_per_tick)
-    if not storage.opened_entity_id then
-        player.print("Error: No valid spaceship control hub entity is open.")
-        return
-    end
+function SpaceShip.start_scan_ship(ship, scan_per_tick)
+    player = ship.player
     if storage.scan_state then
         player.print("Scan is in progress, please wait.")
         return
     end
-    local temp_entity = player.surface.find_entities_filtered { name = "spaceship-control-hub" }
+    local search_area = {
+        { x = ship.hub.position.x - 50, y = ship.hub.position.y - 50 }, -- Define a reasonable search area around the cloned ship
+        { x = ship.hub.position.x + 50, y = ship.hub.position.y + 50 }
+    }
+    local temp_entity = player.surface.find_entities_filtered {area = search_area, name = "spaceship-control-hub" }
     if not temp_entity or #temp_entity == 0 then
         player.print("Error: No spaceship control hub found.")
         return
@@ -518,18 +524,20 @@ function SpaceShip.start_scan_ship(player, scan_per_tick)
     local reference_tile = nil -- Initialize reference_tile
     local scan_radius = 200    -- Limit to prevent excessive scans
 
-    if not storage.spaceships[storage.opened_entity_id] then
-        storage.spaceships[storage.opened_entity_id] = SpaceShip.new("Ship", storage.opened_entity_id, player)
+    local count = table_size(storage.spaceships) + 1
+    if not ship then
+        ship = SpaceShip.new("Explorer" .. count, count, player)
     end
 
-    storage.spaceships[storage.opened_entity_id].floor = nil
-    storage.spaceships[storage.opened_entity_id].entities = nil
-    storage.spaceships[storage.opened_entity_id].reference_tile = nil
-    storage.spaceships[storage.opened_entity_id].surface = nil
+    ship.floor = nil
+    ship.entities = nil
+    ship.reference_tile = nil
+    ship.surface = nil
 
     -- Initialize scan state
     storage.scan_state = {
         player = player,
+        ship_id = ship.id,
         surface = surface,
         tiles_to_check = tiles_to_check,
         scanned_tiles = scanned_tiles,
@@ -540,7 +548,6 @@ function SpaceShip.start_scan_ship(player, scan_per_tick)
         start_pos = start_pos,
         scan_per_tick = scan_per_tick or 50, -- Default to 1 if not provided
         tick_counter = 0,                    -- Counter to track ticks for progress updates
-        entity_id = storage.opened_entity_id,
         tick_amount = 1
     }
     -- Start the scanning process
@@ -553,7 +560,7 @@ function SpaceShip.continue_scan_ship()
     local state = storage.scan_state
     if not state or #state.tiles_to_check == 0 then
         -- Scanning is complete
-        script.on_nth_tick(storage.scan_state.tick_amount, nil) -- Stop the scanning process
+        --script.on_nth_tick(storage.scan_state.tick_amount, nil) -- Stop the scanning process
         if state then
             local temp_entities = {}
             for _, x in pairs(state.entities_on_flooring) do --check through x tables
@@ -562,15 +569,13 @@ function SpaceShip.continue_scan_ship()
                 end
             end
             local player = state.player
-            storage.spaceships[storage.scan_state.entity_id].floor = state.flooring_tiles
-            storage.spaceships[storage.scan_state.entity_id].entities = temp_entities
-            storage.spaceships[storage.scan_state.entity_id].reference_tile = state.reference_tile
-            storage.spaceships[storage.scan_state.entity_id].surface = state.surface
-            storage.spaceships[storage.scan_state.entity_id].scanned = true
-
-            -- Create combined renders for the scanned ship area
-            storage.scan_highlights = SpaceShip.create_combined_renders(player,
-                storage.spaceships[storage.scan_state.entity_id].floor, true, { x = 0, y = 0 })
+            local ship = storage.spaceships[state.ship_id]
+            ship.floor = state.flooring_tiles
+            ship.entities = temp_entities
+            ship.reference_tile = state.reference_tile
+            ship.surface = state.surface
+            ship.scanned = true
+            ship.planet_orbiting = state.surface.platform.space_location
             storage.scan_highlight_expire_tick = game.tick + 60
             player.print("Ship scan completed! Found " ..
                 table_size(state.flooring_tiles) ..
@@ -657,12 +662,10 @@ function SpaceShip.dock_ship(player)
     local dest_surface
     -- Check if the player is in the cockpit or standing on ship flooring
     local player_tile = src_surface.get_tile(player.position)
-    if player.vehicle and player.vehicle.name == "spaceship-control-hub-car" then
+    if ship.player_in_cockpit then
         -- Player is in the cockpit, proceed
-        storage.spaceships[storage.opened_entity_id].player_in_cockpit = true
     elseif player_tile and player_tile.name ~= "spaceship-flooring" then
         -- Player is not standing on ship flooring, proceed
-        storage.spaceships[storage.opened_entity_id].player_in_cockpit = false
     else
         player.print("Error: You must be in the cockpit or not on ship to initiate takeoff.")
         return
@@ -670,8 +673,8 @@ function SpaceShip.dock_ship(player)
 
     for id, plat in pairs(player.force.platforms) do
         if plat.space_location then
-            if plat.space_location.name == storage.spaceships[storage.opened_entity_id].planet_orbiting then
-                if plat.name ~= "SpaceShip" .. storage.spaceships[storage.opened_entity_id].name then
+            if plat.space_location.name == ship.planet_orbiting then
+                if plat.name ~= "SpaceShip" .. ship.name then
                     dest_surface = player.force.platforms[id]
                 end
             end
@@ -683,9 +686,9 @@ function SpaceShip.dock_ship(player)
         return
     end
 
-    storage.spaceships[storage.opened_entity_id].taking_off = true -- Flag to indicate takeoff process has started
+    ship.taking_off = true -- Flag to indicate takeoff process has started
 
-    if not storage.spaceships[storage.opened_entity_id].scanned then
+    if not ship.scanned then
         player.print("Error: No scanned ship data found. Run a ship scan first.")
         return
     end
@@ -704,8 +707,8 @@ function SpaceShip.dock_ship(player)
     storage.player_position_on_render = player.position
     -- Store the highlight data for later updates
     storage.highlight_data = storage.highlight_data or {}
-    storage.highlight_data = SpaceShip.create_combined_renders(player, storage.spaceships[storage.opened_entity_id]
-        .floor, false, { x = 2, y = -4 })
+    --storage.highlight_data = SpaceShip.create_combined_renders(player, ship
+    --    .floor, false, { x = 2, y = -4 })
     player.print("rends count: " .. #storage.highlight_data)
     storage.highlight_data_player_index = player.index
 
@@ -735,12 +738,12 @@ end
 
 -- Usage in finalizeTakeoff
 function SpaceShip.finalize_dock(player)
-    if not storage.spaceships[storage.opened_entity_id].scanned then
+    if not ship.scanned then
         player.print("Error: No scanned ship data found.")
         return
     end
 
-    local src_surface = storage.spaceships[storage.opened_entity_id].surface -- Retrieve the source surface
+    local src_surface = ship.surface -- Retrieve the source surface
     local dest_surface = player.surface
     local dest_center = { x = math.ceil(player.position.x), y = math.floor(player.position.y - 5) }
 
@@ -749,7 +752,7 @@ function SpaceShip.finalize_dock(player)
         ["logistic-robot"] = true,
         ["contruction-robot"] = true,
     }
-    --storage.spaceships[storage.opened_entity_id].planet_orbiting = src_surface.name
+    --ship.planet_orbiting = src_surface.name
     -- Clone the ship area to the destination surface
     SpaceShip.clone_ship_area(src_surface.platform.surface, dest_surface, dest_center, excluded_types)
 
@@ -815,10 +818,10 @@ function SpaceShip.finalize_dock(player)
         area = search_area,
         name = "spaceship-control-hub"
     })
-    storage.spaceships[storage.opened_entity_id].hub = entities_in_area[1]
-    storage.spaceships[storage.opened_entity_id].taking_off = false -- Reset the taking off flag
-    storage.spaceships[storage.opened_entity_id].own_surface = false
-    storage.spaceships[storage.opened_entity_id].surface = dest_surface
+    ship.hub = entities_in_area[1]
+    ship.taking_off = false -- Reset the taking off flag
+    ship.own_surface = false
+    ship.surface = dest_surface
     src_surface.platform.destroy(1)
 end
 
@@ -854,7 +857,7 @@ function SpaceShip.cancel_dock(player)
     end
 
     player.print("Takeoff canceled. Returning to the ship.")
-    storage.spaceships[storage.opened_entity_id].taking_off = false -- Reset the taking off flag
+    ship.taking_off = false -- Reset the taking off flag
 end
 
 function SpaceShip.read_circuit_signals(entity)
@@ -882,7 +885,7 @@ function SpaceShip.read_circuit_signals(entity)
         if green_signals then
             for _, signal in pairs(green_signals) do
                 signals[signal.signal.name] = signals[signal.signal.name] or 0
-                signals[signal.signal.name] = signals[signal.signal.name] + signal.count
+                signals[signal.signal.name] = signal[signal.signal.name] + signal.count
             end
         end
     end
@@ -909,6 +912,69 @@ function SpaceShip.check_circuit_condition(entity, signal_name, comparison, valu
     end
 
     return false
+end
+
+function SpaceShip.check_automatic_behavior()
+    -- Check each ship in storage
+    for id, ship in pairs(storage.spaceships or {}) do
+        -- Skip if not in automatic mode
+        if not ship.automatic then goto continue end
+
+        -- Get current station from schedule
+        local schedule = ship.schedule
+        if not schedule or not schedule.records then goto continue end
+
+        local current_station = schedule.records[schedule.current]
+        if not current_station then goto continue end
+
+        if not ship.scanned and not storage.scan_state then
+            SpaceShip.start_scan_ship(ship, 50)
+        elseif not ship.scanned then
+            goto continue
+        end
+
+        -- Check if ship is orbiting the current station
+        if ship.own_surface or not ship.scanned then goto continue end
+        if ship.surface.platform.space_location.name == current_station.station then
+            -- Check all wait conditions for current station
+            local all_conditions_met = true
+            for _, condition in pairs(current_station.wait_conditions) do
+                if not SpaceShip.check_circuit_condition(
+                        ship.hub,
+                        condition.condition.first_signal.name,
+                        condition.condition.comparator,
+                        condition.condition.constant
+                    ) then
+                    all_conditions_met = false
+                    break
+                end
+            end
+
+            -- If all conditions are met, prepare for travel
+            if all_conditions_met then
+                SpaceShip.clone_ship_to_space_platform(ship)
+                -- Set next station in schedule
+                local next_station
+                if schedule.records[schedule.current + 1] then
+                    schedule.current = schedule.current + 1
+                    next_station = schedule.records[schedule.current]
+                else
+                    schedule.current = 1
+                    next_station = schedule.records[schedule.current]
+                end
+
+                -- Update platform schedule and start travel
+                local platform = ship.hub.surface.platform
+                if platform then
+                    platform.schedule = schedule
+                    platform.paused = false
+                    game.print("Ship " .. ship.name .. " departing to " .. next_station.station)
+                end
+            end
+        end
+
+        ::continue::
+    end
 end
 
 return SpaceShip

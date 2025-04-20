@@ -1,14 +1,13 @@
 custom gui that uses space hub inventory, that way stuff is hidden
 
-need to do: 
---fix dock final (not spawning entities)
---add check to takeoff to make sure platform is on its won surface
---change the gui captions to the ones in core/locale/en/core.cfg were viable
---fix planet indicator for stations
+need to do: -=important,--=less important
+-add dock points (entity on ship and on platform that line up to each other?)(will need to offset the refernace tile?)
+-set up logic for when ship reaches its destination to dock with station
 
--create gui for making auto schedule.
---Add check to see if auto and if all conditions are met for the planets its planet_orbiting
---if both are true, launch ship into travel mode and start the schedule
+--fix dock final (not spawning entities)
+--add check to takeoff to make sure platform is on its own surface
+--change the gui captions to the ones in core/locale/en/core.cfg were viable
+--spell check
 
 
 
@@ -19,9 +18,9 @@ storage.spaceship structure
     walls = {}--not used yet
     name = string
     id = int
-    player = person who created it
+    player_owner = person who created it
     scanned = bool (need to scan to log ship info, should be fired any time the ship changes)
-    player_in_cockpit = bool (for telling if ship is being manipulated by player or in auto)
+    player_in_cockpit = playerLua in cockpit
     taking_off = bool (should be renamed to docking)
     own_surface = bool (check if ship is on its own surface before letting it do automatic stuff)
     hub = entity

@@ -15,8 +15,9 @@ local function handle_built_entity(entity, player)
         storage.spaceships = storage.spaceships or {}
         local count = table_size(storage.spaceships) + 1
         local my_ship = SpaceShip.new("Explorer" .. count, count, player)
+        entity.tags = { id = 1 }
         my_ship.hub = entity
-        storage.spaceships[entity.unit_number] = my_ship
+        storage.spaceships[my_ship.id] = my_ship
         local car_position = { x = entity.position.x, y = entity.position.y + 4.5 } -- Car spawns slightly lower so player can enter it
         local car = surface.create_entity {
             name = "spaceship-control-hub-car",
@@ -47,7 +48,11 @@ local function handle_mined_entity(entity)
         for _, car in pairs(cars) do
             car.destroy()
         end
-        storage.spaceships[entity.unit_number] = nil
+        for key, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == entity.unit_number then
+                storage.spaceships[key] = nil
+            end
+        end
     end
 end
 
@@ -85,10 +90,15 @@ end)
 script.on_event(defines.events.on_gui_opened, function(event)
     local player = game.get_player(event.player_index)
     local opened_entity = event.entity
+    local ship
 
     if opened_entity and opened_entity.valid and opened_entity.name == "spaceship-control-hub" then
-        storage.opened_entity_id = opened_entity.unit_number
-        SpaceShipGuis.create_spaceship_gui(player)
+        for _, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == opened_entity.unit_number then
+                ship = storage.spaceships[value.id]
+            end
+        end
+        SpaceShipGuis.create_spaceship_gui(player, ship)
     end
 end)
 
@@ -166,18 +176,28 @@ script.on_event(defines.events.on_tick, function(event)
 
     if game.tick % 60 == 0 then
         for _, ship in pairs(storage.spaceships or {}) do
-            -- Check if ship has a condition GUI
-            if ship.condition_gui and ship.condition_gui.frame.valid then
-                local condition_flow = ship.condition_gui.condition_flow
-                if condition_flow then
-                    for _, condition_frame in pairs(condition_flow.children) do
-                        if condition_frame.name:match("^condition_row_%d+$") then
-                            SpaceShipGuis.check_condition_row(condition_frame)
+            if ship.schedule_gui and ship.schedule_gui.valid then
+                local station_scroll = ship.schedule_gui["vertical-flow"]["flow"]["station-scroll-panel"]
+                if station_scroll then
+                    for _, station in pairs(station_scroll.children) do
+                        if station.name:match("^station%d+$") then
+                            local condition_gui = station["spaceship-condition-gui"]
+                            if condition_gui then
+                                local condition_flow = condition_gui["main_container"]["condition_flow"]
+                                if condition_flow then
+                                    for _, condition in pairs(condition_flow.children) do
+                                        if condition.name:match("^condition_row_%d+$") then
+                        SpaceShipGuis.check_condition_row(condition)
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
             end
         end
+        SpaceShip.check_automatic_behavior()
     end
 end)
 
@@ -189,10 +209,24 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
     if not vehicle or not vehicle.valid then return end
 
     if vehicle.name == "spaceship-control-hub-car" then
+        local search_area = {
+            { x = vehicle.position.x - 50, y = vehicle.position.y - 50 }, -- Define a reasonable search area around the cloned ship
+            { x = vehicle.position.x + 50, y = vehicle.position.y + 50 }
+        }
+        hub = event.entity.surface.find_entities_filtered { area = search_area, name = "spaceship-control-hub" }
+        local ship
+        for _, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == hub[1].unit_number then
+                ship = storage.spaceships[value.id]
+            end
+        end
         -- Player entered/exited the cockpit
         if player.vehicle then
+            ship.player_in_cockpit = player
             -- Player entered the cockpit
-            SpaceShipGuis.create_spaceship_gui(player)
+            --SpaceShipGuis.create_spaceship_gui(player)
+        else
+            ship.player_in_cockpit = nil
         end
     elseif vehicle.name == "space-platform-hub" then
         player.leave_space_platform()
@@ -204,12 +238,15 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
     if not player or not player.valid then return end
 
     local selected_entity = player.selected -- The entity the player is currently hovering over
-
     -- Check if the player is hovering over the spaceship-control-hub
     if selected_entity and selected_entity.valid and selected_entity.name == "spaceship-control-hub" then
         storage.spaceships = storage.spaceships or {}
-        if not storage.spaceships[selected_entity.unit_number] then return end
-        ship = storage.spaceships[selected_entity.unit_number]
+        local ship
+        for _, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == selected_entity.unit_number then
+                ship = storage.spaceships[value.id]
+            end
+        end
         -- Create a GUI if it doesn't already exist
         if not player.gui.screen["hovering_gui"] then
             local hovering_gui = player.gui.screen.add
@@ -263,13 +300,23 @@ script.on_event(defines.events.on_space_platform_changed_state, function(event)
     local plat = event.platform
     if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
         game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
-        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
-        ship = storage.spaceships[hub[1].unit_number]
+        hub = plat.surface.find_entities_filtered {name = "spaceship-control-hub" }
+        local ship
+        for _, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == hub[1].unit_number then
+                ship = storage.spaceships[value.id]
+            end
+        end
         ship.planet_orbiting = plat.space_location.name
     elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
         game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
-        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
-        ship = storage.spaceships[hub[1].unit_number]
+        hub = plat.surface.find_entities_filtered {name = "spaceship-control-hub" }
+        local ship
+        for _, value in pairs(storage.spaceships) do
+            if value.hub.unit_number == hub[1].unit_number then
+                ship = storage.spaceships[value.id]
+            end
+        end
         ship.planet_orbiting = "none"
     end
 end)
@@ -278,19 +325,25 @@ end)
 -- Add handlers for signal chooser and value changes
 script.on_event(defines.events.on_gui_elem_changed, function(event)
     if event.element.name == "condition_type_chooser" then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
     end
 end)
 
 script.on_event(defines.events.on_gui_text_changed, function(event)
     if event.element.name:match("^condition_value_%d+$") then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
     end
 end)
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
     if event.element.name:match("^comparison_dropdown_%d+$") then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
     end
     SpaceShipGuis.handle_dropdown_selection(event)
+end)
+
+script.on_event(defines.events.on_gui_switch_state_changed, function(event)
+    if event.element.name == "auto-manual-switch" then
+        SpaceShipGuis.handle_button_click(event)
+    end
 end)

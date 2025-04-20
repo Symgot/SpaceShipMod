@@ -3,28 +3,23 @@ local SpaceShip = require("spacShip")
 local SpaceShipGuis = {}
 
 -- Function to create the custom spaceship control GUI
-function SpaceShipGuis.create_spaceship_gui(player)
+function SpaceShipGuis.create_spaceship_gui(player,ship)
     local relative_gui = player.gui.relative
 
-    if relative_gui["spaceship-controller-extended-gui"] then
+    if relative_gui["spaceship-controller-extended-gui-"..ship.name] then
         return
     end
-    if relative_gui["spaceship-controller-schedual-gui"] then
+    if relative_gui["spaceship-controller-schedual-gui-"..ship.name] then
         return
     end
 
     -- Initialize storage if needed
     storage = storage or {}
     storage.spaceships = storage.spaceships or {}
-    
-    -- Check if we have a valid opened entity
-    if not storage.opened_entity_id or not storage.spaceships[storage.opened_entity_id] then
-        return
-    end
 
     local custom_gui = relative_gui.add {
         type = "frame",
-        name = "spaceship-controller-extended-gui",
+        name = "spaceship-controller-extended-gui-"..ship.name,
         caption = "Spaceship Actions",
         direction = "vertical",
         anchor = {
@@ -34,31 +29,47 @@ function SpaceShipGuis.create_spaceship_gui(player)
     }
     local schedual_gui = relative_gui.add {
         type = "frame",
-        name = "spaceship-controller-schedual-gui",
+        name = "spaceship-controller-schedual-gui-"..ship.name,
         caption = { "gui-train.schedule" },
         anchor = {
             gui = defines.relative_gui_type.container_gui,
             position = defines.relative_gui_position.right
         }
     }
-    ship_temp = storage.spaceships[storage.opened_entity_id]
+    ship.schedule_gui = schedual_gui
     --main panel
     flow = schedual_gui.add { type = "flow", name = "vertical-flow", direction = "vertical" }
     --switch panel
     selector = flow.add { type = "flow", name = "switch-flow", direction = "horizontal" }
     selectorlabel = selector.add { type = "label", caption = "Automatic", name = "auto" }
-    selectorlabel = selector.add { type = "switch", name = "auto-manual-switch" }
+    local switch = selector.add { 
+        type = "switch",
+        name = "auto-manual-switch",
+        allow_none_state = false,
+        switch_state = "left"  -- Default to automatic
+    }
     selectorlabel = selector.add { type = "label", caption = "Paused", name = "paused" }
+
+    -- Set switch state from storage if it exists
+    if ship.automatic ~= nil then
+        switch.switch_state = ship.automatic and "left" or "right"
+    else
+        ship.automatic = false
+        switch.switch_state = ship.automatic and "left" or "right"
+    end
+
     --schedual panel
     schedualflow = flow.add { type = "flow", name = "flow" }
-    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always" }
+    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always",name = "station-scroll-panel" }
     schedbutton = schedualscroll.add { type = "button", style = "train_schedule_add_station_button", name = "add-station", caption = { "gui-train.add-station" } }
     --test station
 
-    if storage.spaceships[storage.opened_entity_id].schedule and storage.spaceships[storage.opened_entity_id].schedule.records then
-        for _, value in pairs(storage.spaceships[storage.opened_entity_id].schedule.records) do
+    if ship.schedule and ship.schedule.records then
+        for _, value in pairs(ship.schedule.records) do
             SpaceShipGuis.add_station(schedualscroll)
         end
+        -- Initialize all progress bars after creating stations
+        SpaceShipGuis.initialize_progress_bars(ship)
     end
 
     -- Add a dropdown with only planet surfaces
@@ -129,19 +140,11 @@ function SpaceShipGuis.create_condition_gui(parent)
         caption = "+ Add wait condition",
         style = "train_schedule_add_wait_condition_button"
     }
-
-    -- Store the GUI reference in the ship's data
-    if storage.opened_entity_id and storage.spaceships[storage.opened_entity_id] then
-        storage.spaceships[storage.opened_entity_id].condition_gui = {
-            frame = frame,
-            condition_flow = condition_flow,
-            logic_flow = logic_flow
-        }
-    end
     station_number = tonumber(parent.name:match("%d+"))
+    local ship = storage.spaceships[tonumber(frame.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     -- Check if we have stored conditions to apply
-    if storage.opened_entity_id and storage.spaceships[storage.opened_entity_id].schedule then
-        local schedule = storage.spaceships[storage.opened_entity_id].schedule
+    if ship.schedule then
+        local schedule = ship.schedule
         if schedule.records and schedule.records[station_number].wait_conditions then
             -- First create all the condition rows
             for i, condition in pairs(schedule.records[station_number].wait_conditions) do
@@ -304,12 +307,16 @@ function SpaceShipGuis.add_condition_row(event)
         sprite = "virtual-signal/signal-X",
         style = "train_schedule_delete_button"
     }
+
+    -- Initialize the progress bar for the new condition
+    SpaceShipGuis.check_condition_row(condition_frame)
 end
 
 -- Add this after setting up the condition row GUI elements
 function SpaceShipGuis.check_condition_row(condition_frame)
     -- Get condition number from the frame name
     local condition_number = tonumber(condition_frame.name:match("%d+"))
+    local ship = storage.spaceships[tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if not condition_number then return false end
 
     -- Get the signal button, comparison, and value elements
@@ -330,8 +337,9 @@ function SpaceShipGuis.check_condition_row(condition_frame)
     local target_value = tonumber(value_field.text) or 0
 
     -- Read the circuit signals and check the condition
-    local signals = SpaceShip.read_circuit_signals(storage.spaceships[storage.opened_entity_id].hub)
+    local signals = SpaceShip.read_circuit_signals(ship.hub)
     local current_value = signals[signal_name] or 0
+    local parent_parent = condition_frame.parent.parent.parent.parent.name
 
     -- Update the progress bar
     local progress_bar = condition_frame["condition_progress"]
@@ -342,26 +350,27 @@ function SpaceShipGuis.check_condition_row(condition_frame)
 
     -- Return true if condition is met
     return SpaceShip.check_circuit_condition(
-        storage.spaceships[storage.opened_entity_id].hub,
+        ship.hub,
         signal_name,
         comparison_type,
         target_value
     )
 end
 
-function SpaceShipGuis.save_wait_conditions(frame)
+function SpaceShipGuis.save_wait_conditions(condition_frame)
     -- Get station number from parent frame
-    local station_number = tonumber(frame.parent.parent.name:match("%d+"))
+    local station_number = tonumber(condition_frame.parent.name:match("(%d+)$"))
+    local ship = storage.spaceships[tonumber(condition_frame.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if not station_number then return end
 
     -- Initialize wait_conditions array if it doesn't exist
-    if not storage.spaceships[storage.opened_entity_id].schedule.records[station_number].wait_conditions then
-        storage.spaceships[storage.opened_entity_id].schedule.records[station_number].wait_conditions = {}
+    if not ship.schedule.records[station_number].wait_conditions then
+        ship.schedule.records[station_number].wait_conditions = {}
     end
 
     local wait_conditions = {}
-    local condition_flow = frame["condition_flow"]
-    local logic_flow = frame["logic_flow"]
+    local condition_flow = condition_frame["main_container"]["condition_flow"]
+    local logic_flow = condition_frame["main_container"]["logic_flow"]
 
     -- Iterate through all condition rows
     for i, child in pairs(condition_flow.children) do
@@ -412,11 +421,11 @@ function SpaceShipGuis.save_wait_conditions(frame)
     end
 
     -- Store the conditions
-    storage.spaceships[storage.opened_entity_id].schedule.records[station_number].wait_conditions = wait_conditions
+    ship.schedule.records[station_number].wait_conditions = wait_conditions
 end
 
 function SpaceShipGuis.add_station(parent)
-    local ship = storage.spaceships[storage.opened_entity_id]
+    ship = storage.spaceships[tonumber(parent.parent.parent.parent.name:match("(%d+)$"))]
     local stop1holder
     for key, value in pairs(ship.schedule.records) do
         local found = false
@@ -448,14 +457,29 @@ function SpaceShipGuis.add_station(parent)
                 end
             end
 
-            -- Replace the label with a dropdown
+            -- Create the dropdown with stored selection
             local planet_dropdown = stop1.add {
                 type = "drop-down",
                 name = "station-planet-dropdown_" .. key,
                 items = planet_names,
-                selected_index = 1, -- Default to first planet
+                selected_index = 1
             }
             planet_dropdown.style.horizontally_stretchable = true
+
+            -- Set the stored planet if it exists
+            if ship.schedule.records[key] and ship.schedule.records[key].station then
+                -- Find the index of the stored planet
+                for i, name in ipairs(planet_names) do
+                    if name == ship.schedule.records[key].station then
+                        planet_dropdown.selected_index = i
+                        -- Also update the sprite
+                        if helpers.is_valid_sprite_path("space-location/" .. name) then
+                            sprite_button.sprite = "space-location/" .. name
+                        end
+                        break
+                    end
+                end
+            end
 
             local movebuttonsflow = stop1.add { type = "flow", direction = "vertical" }
             local moveup = movebuttonsflow.add {
@@ -490,31 +514,32 @@ function SpaceShipGuis.delete_station(event)
         return
     end
     local station_number = tonumber(string.match(event.element.parent.parent.name, "%d+"))
-    storage.spaceships[storage.opened_entity_id].schedule.records[station_number] = nil
+    local ship_id = tonumber(string.match(event.element.parent.parent.parent.parent.parent.parent.name, "%d+"))
+    storage.spaceships[ship_id].schedule.records[station_number] = nil
     event.element.parent.parent.destroy()
 end
 
 -- Function to close the spaceship control GUI
 function SpaceShipGuis.close_spaceship_gui(event)
     if not event.player_index then return end
+    local ship
+    for _, value in pairs(storage.spaceships) do
+        if value.hub.unit_number == event.entity.unit_number then
+            ship = storage.spaceships[value.id]
+        end
+    end
     local player = game.get_player(event.player_index)
     if event.entity and event.entity.name == "spaceship-control-hub" then
-        -- Clear the condition GUI reference
-        if storage.opened_entity_id and storage.spaceships[storage.opened_entity_id] then
-            storage.spaceships[storage.opened_entity_id].condition_gui = nil
-        end
-
         -- Destroy the custom GUI when the main GUI for "spaceship-control-hub" is closed.
-        local custom_gui = player.gui.relative["spaceship-controller-extended-gui"]
+        local custom_gui = player.gui.relative["spaceship-controller-extended-gui-"..ship.name]
         if custom_gui then
             custom_gui.destroy()
-            storage.opened_entity_id = nil
             player.print("extended GUI closed with the main GUI.")
         end
-        local custom_gui = player.gui.relative["spaceship-controller-schedual-gui"]
+        local custom_gui = player.gui.relative["spaceship-controller-schedual-gui-"..ship.name]
         if custom_gui then
             custom_gui.destroy()
-            storage.opened_entity_id = nil
+            ship.schedule_gui = nil
             player.print("schedual GUI closed with the main GUI.")
         end
     end
@@ -524,10 +549,10 @@ end
 function SpaceShipGuis.handle_button_click(event)
     local button_name = event.element.name
     local player = game.get_player(event.player_index)
-    local parent = event.element.parent
     if button_name == "scan-ship" then -- Call the scan_ship function
         player.print("Scanning the ship...")
-        SpaceShip.start_scan_ship(player)
+        local ship = storage.spaceships[tonumber(event.element.parent.name:match("(%d+)$"))]
+        SpaceShip.start_scan_ship(ship)
     elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
         if storage.spaceships[storage.opened_entity_id].scanned then
             player.print("Spaceship takeoff initiated!")
@@ -550,7 +575,8 @@ function SpaceShipGuis.handle_button_click(event)
         player.print("Docking the spaceship...")
         SpaceShip.dock_ship(player)
     elseif button_name == "add-station" then
-        SpaceShip.add_or_change_station(storage.spaceships[storage.opened_entity_id])
+        local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.parent.name:match("(%d+)$"))]
+        SpaceShip.add_or_change_station(ship)
         SpaceShipGuis.add_station(event.element.parent)
     elseif button_name == "delete-station" then
         SpaceShipGuis.delete_station(event)
@@ -558,13 +584,18 @@ function SpaceShipGuis.handle_button_click(event)
         SpaceShipGuis.add_condition_row(event)
         SpaceShipGuis.save_wait_conditions(event.element.parent)
     elseif button_name:match("^delete_condition_button_%d+$") then
-        local frame = event.element.parent.parent.parent.parent
+        local frame = event.element.parent.parent.parent.parent.parent
         SpaceShipGuis.delete_condition(event)
         SpaceShipGuis.save_wait_conditions(frame)
     elseif button_name:match("^logic%-operator%-button_%d+$") then
         -- Toggle between AND and OR
         event.element.caption = event.element.caption == "AND" and "OR" or "AND"
         SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent)
+    elseif button_name == "auto-manual-switch" then
+        local switch = event.element
+        local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.name:match("(%d+)$"))]
+        -- Save the state to storage (left = automatic = true, right = manual = false)
+        ship.automatic = (switch.switch_state == "left")
     else
         player.print("Unknown button clicked: " .. button_name)
     end
@@ -574,8 +605,8 @@ end
 function SpaceShipGuis.handle_dropdown_selection(event)
     player = game.get_player(event.player_index)
     dropdown = event.element
+    local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if dropdown.name == "surface-dropdown" then
-        local dropdown = player.gui.relative["spaceship-controller-extended-gui"]["surface-dropdown"]
         if dropdown and dropdown.valid then
             local selected_planet = dropdown.items[dropdown.selected_index]
             if selected_planet then
@@ -586,15 +617,17 @@ function SpaceShipGuis.handle_dropdown_selection(event)
             end
         end
     elseif dropdown.name:match("^station%-planet%-dropdown_%d+$") then
-        local location_number = tonumber(dropdown.name:match("%d+"))
-        if location_number then
+        local station_number = tonumber(dropdown.name:match("%d+"))
+        if station_number then
             local selected_planet = dropdown.items[dropdown.selected_index]
             if selected_planet then
-                -- Update the station's target planet in storage
-                if not storage.spaceships[storage.opened_entity_id].schedule.records[location_number] then
-                    storage.spaceships[storage.opened_entity_id].schedule.records[location_number] = {}
+                -- Initialize the record if it doesn't exist
+                if not ship.schedule.records[station_number] then
+                    ship.schedule.records[station_number] = {}
                 end
-                storage.spaceships[storage.opened_entity_id].schedule.records[location_number].station = selected_planet
+                -- Update the station's target planet
+                ship.schedule.records[station_number].station = selected_planet
+                -- Update the sprite if available
                 if helpers.is_valid_sprite_path("space-location/" .. selected_planet) then
                     dropdown.parent["planet-select-button"].sprite = "space-location/" .. selected_planet
                 end
@@ -684,6 +717,31 @@ function SpaceShipGuis.delete_condition(event)
                 logic_button.name = "logic-operator-button_" .. new_number
             end
             new_number = new_number + 1
+        end
+    end
+end
+
+function SpaceShipGuis.initialize_progress_bars(ship)
+    if not ship.schedule then
+        return
+    end
+    player  = ship.player
+    for station_number, record in pairs(ship.schedule.records) do
+        -- Find the condition frame for this station
+        local station_frame = player.gui.relative["spaceship-controller-schedual-gui-"..ship.name]
+            ["vertical-flow"]["flow"]["station-scroll-panel"]
+            ["station" .. station_number]
+
+        if station_frame then
+            local condition_flow = station_frame["spaceship-condition-gui"]
+                ["main_container"]["condition_flow"]
+            
+            -- Update each condition's progress bar
+            for _, child in pairs(condition_flow.children) do
+                if child.name:match("^condition_row_%d+$") then
+                    SpaceShipGuis.check_condition_row(child)
+                end
+            end
         end
     end
 end
