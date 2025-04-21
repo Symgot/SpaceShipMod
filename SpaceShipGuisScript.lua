@@ -523,7 +523,7 @@ end
 function SpaceShipGuis.close_spaceship_gui(event)
     if not event.player_index then return end
     local ship
-    for _, value in pairs(storage.spaceships) do
+        for _, value in pairs(storage.spaceships) do
         if value.hub.unit_number == event.entity.unit_number then
             ship = storage.spaceships[value.id]
         end

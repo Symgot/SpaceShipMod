@@ -1,7 +1,6 @@
 local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("spacShip")
-local Travel = require("travel")
 
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
 
