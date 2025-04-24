@@ -14,6 +14,9 @@ local make_tile_area = function(area, name)
     return result
 end
 
+local dockingPortEntity = table.deepcopy(data.raw["constant-combinator"]["constant-combinator"])
+local dockingPortRecipe = table.deepcopy(data.raw["recipe"]["cargo-bay"])
+local dockingPortItem = table.deepcopy(data.raw["item"]["cargo-bay"])
 local floorItem = table.deepcopy(data.raw["item"]["space-platform-foundation"])
 local floorEntity = table.deepcopy(data.raw["tile"]["space-platform-foundation"])
 local floorRecipe = table.deepcopy(data.raw["recipe"]["space-platform-foundation"])
@@ -26,6 +29,22 @@ local controlHubItem = table.deepcopy(data.raw["item"]["cargo-bay"])
 local controlHubRecipe = table.deepcopy(data.raw["recipe"]["cargo-bay"])
 --local controlHubEntityCar = table.deepcopy(data.raw["car"]["car"])
 local controlHubItemCar = table.deepcopy(data.raw["item-with-entity-data"]["car"])
+
+dockingPortRecipe.name = "spaceship-docking-port"
+dockingPortRecipe.localised_name = "Spaceship Docking Port"
+dockingPortRecipe.localised_description = "Docking port for spaceship."
+dockingPortRecipe.ingredients = { { type = "item", name = "iron-plate", amount = 1 } }
+dockingPortRecipe.results = { { type = "item", name = "spaceship-docking-port", amount = 1 } }
+dockingPortRecipe.enabled = true
+
+dockingPortItem.name = "spaceship-docking-port"
+dockingPortItem.localised_name = "Spaceship Docking Port"
+dockingPortItem.place_result = "spaceship-docking-port"
+
+dockingPortEntity.name = "spaceship-docking-port"
+dockingPortEntity.localised_name = "Spaceship Docking Port"
+dockingPortEntity.place_result = "spaceship-docking-port"
+dockingPortEntity.minable = { mining_time = 0.2, result = "spaceship-docking-port" }
 
 controlHubItemCar.name = "spaceship-control-hub-car"
 
@@ -76,7 +95,7 @@ data:extend({
         localised_description     = "Main control hub for the spaceship.",
         placeable_by              = data.raw["item"]["spaceship-control-hub"],
         flags                     = { "placeable-neutral", "player-creation", "not-rotatable" },
-        icon                      = data.raw["space-platform-hub"]["space-platform-hub"].icon,
+        icon                      = data.raw["space-platform-starter-pack"]["space-platform-starter-pack"].icon,
         circuit_connector         = data.raw["container"]["iron-chest"].circuit_connector,
         circuit_wire_max_distance = data.raw["container"]["iron-chest"].circuit_wire_max_distance,
         draw_circuit_wires        = true,
@@ -173,6 +192,9 @@ data:extend({
         order = "a[space-platform]",
         category = "crafting",
     },
+    dockingPortItem,
+    dockingPortRecipe,
+    dockingPortEntity,
     floorItem,
     floorRecipe,
     floorEntity,

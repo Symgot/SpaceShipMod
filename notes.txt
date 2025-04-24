@@ -9,8 +9,10 @@ need to do: -=important,--=less important
 --change the gui captions to the ones in core/locale/en/core.cfg were viable
 --spell check
 
-
-
+Suggestions:
+-Galdoc
+--Was thinking if like, a planet had automated defenses or something, and that manifested with small ships sorta 'teleporting' in (because I have no idea how to animate them moving in) and shooting weapons at the player's ship or whatever
+----trigger an event that teleport the player ship the a new surface and have the ships move close together (destroying a % of the enemy ship would allow the player to "savage" the other ship, whether that be take parts or link up to the current ship so it can be "towed" back to a station to be made into a complete ship again
 
 
 storage.spaceship structure
@@ -25,9 +27,15 @@ storage.spaceship structure
     own_surface = bool (check if ship is on its own surface before letting it do automatic stuff)
     hub = entity
     schedule = {name,schedule{base game}} (used for automation and saving info between docking)
+    port_records = {record_number,port_entity_unit_number} (This will be tied to whatever staion and a port, used for auto docking)
     floor = {positions} (tile positions)
     entities = {entities} (we need this to clone all entities)(count be changed later to make it scan when docking/undocking if more efficient)
     referance_tile = {x,y} (pick first tile found when scanning to use for referance later)
     surface = LuaSurface
     planet_orbiting = string (need to know this for automation, could potentialy use surface to get it as well if more efficient.)
 }
+
+
+update storage to whatever port is selected
+add check to not let ship go into auto if there is not a port selected
+when ship reaches destination (could check state change and space location?) clone ship to port.

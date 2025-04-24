@@ -27,8 +27,11 @@ local function handle_built_entity(entity, player)
             car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
             player.print("Spaceship control hub car spawned!")
         else
-            player.print("Error: Unable to spawn spaceship control hub car!")
+            player.print("Eable to spawn spaceship control hub car!")
         end
+    end
+    if entity.name == "spaceship-docking-port" then
+        SpaceShip.register_docking_port(entity)
     end
 end
 
@@ -51,6 +54,11 @@ local function handle_mined_entity(entity)
             if value.hub.unit_number == entity.unit_number then
                 storage.spaceships[key] = nil
             end
+        end
+    end
+    if entity.name == "spaceship-docking-port" then
+        if storage.docking_ports and storage.docking_ports[entity.unit_number] then
+            storage.docking_ports[entity.unit_number] = nil
         end
     end
 end
@@ -97,7 +105,15 @@ script.on_event(defines.events.on_gui_opened, function(event)
                 ship = storage.spaceships[value.id]
             end
         end
-        SpaceShipGuis.create_spaceship_gui(player, ship)
+    SpaceShipGuis.create_spaceship_gui(player, ship)
+    end
+    if event.entity and event.entity.name == "spaceship-docking-port" then
+        -- Close default GUI
+        if player.opened then
+            player.opened = nil
+        end
+        -- Open our custom GUI
+        SpaceShipGuis.create_docking_port_gui(player,event.entity)
     end
 end)
 
@@ -331,6 +347,9 @@ end)
 script.on_event(defines.events.on_gui_text_changed, function(event)
     if event.element.name:match("^condition_value_%d+$") then
         SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
+    end
+    if event.element.name == "dock-name-input" or event.element.name == "dock-limit-input" then
+        SpaceShipGuis.handle_text_changed_docking_port(event)
     end
 end)
 

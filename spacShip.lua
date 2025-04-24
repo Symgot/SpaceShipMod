@@ -54,6 +54,27 @@ function SpaceShip.new(name, id, player)
     return self
 end
 
+SpaceShip.init_docking_ports = function()
+    storage.docking_ports = storage.docking_ports or {}
+end
+
+-- Add new function to handle docking port creation
+SpaceShip.register_docking_port = function(entity)
+    if not storage.docking_ports then SpaceShip.init_docking_ports() end
+    local tile = entity.surface.get_tile(entity.position)
+    if tile.name ~= "space-platform-foundation" then
+        game.print("Space ship docking port not added to storage")
+        return
+    end
+    storage.docking_ports[entity.unit_number] = {
+        entity = entity,
+        position = entity.position,
+        surface = entity.surface,
+        name = "",  -- Will be set via GUI
+        ship_limit = 1  -- Default limit
+    }
+end
+
 -- Create combined renders for grouped tiles
 function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     -- Ensure the player is valid

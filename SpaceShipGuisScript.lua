@@ -3,13 +3,13 @@ local SpaceShip = require("spacShip")
 local SpaceShipGuis = {}
 
 -- Function to create the custom spaceship control GUI
-function SpaceShipGuis.create_spaceship_gui(player,ship)
+function SpaceShipGuis.create_spaceship_gui(player, ship)
     local relative_gui = player.gui.relative
 
-    if relative_gui["spaceship-controller-extended-gui-"..ship.name] then
+    if relative_gui["spaceship-controller-extended-gui-" .. ship.name] then
         return
     end
-    if relative_gui["spaceship-controller-schedual-gui-"..ship.name] then
+    if relative_gui["spaceship-controller-schedual-gui-" .. ship.name] then
         return
     end
 
@@ -19,7 +19,7 @@ function SpaceShipGuis.create_spaceship_gui(player,ship)
 
     local custom_gui = relative_gui.add {
         type = "frame",
-        name = "spaceship-controller-extended-gui-"..ship.name,
+        name = "spaceship-controller-extended-gui-" .. ship.name,
         caption = "Spaceship Actions",
         direction = "vertical",
         anchor = {
@@ -29,7 +29,7 @@ function SpaceShipGuis.create_spaceship_gui(player,ship)
     }
     local schedual_gui = relative_gui.add {
         type = "frame",
-        name = "spaceship-controller-schedual-gui-"..ship.name,
+        name = "spaceship-controller-schedual-gui-" .. ship.name,
         caption = { "gui-train.schedule" },
         anchor = {
             gui = defines.relative_gui_type.container_gui,
@@ -42,11 +42,11 @@ function SpaceShipGuis.create_spaceship_gui(player,ship)
     --switch panel
     selector = flow.add { type = "flow", name = "switch-flow", direction = "horizontal" }
     selectorlabel = selector.add { type = "label", caption = "Automatic", name = "auto" }
-    local switch = selector.add { 
+    local switch = selector.add {
         type = "switch",
         name = "auto-manual-switch",
         allow_none_state = false,
-        switch_state = "left"  -- Default to automatic
+        switch_state = "left" -- Default to automatic
     }
     selectorlabel = selector.add { type = "label", caption = "Paused", name = "paused" }
 
@@ -60,7 +60,7 @@ function SpaceShipGuis.create_spaceship_gui(player,ship)
 
     --schedual panel
     schedualflow = flow.add { type = "flow", name = "flow" }
-    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always",name = "station-scroll-panel" }
+    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always", name = "station-scroll-panel" }
     schedbutton = schedualscroll.add { type = "button", style = "train_schedule_add_station_button", name = "add-station", caption = { "gui-train.add-station" } }
     --test station
 
@@ -174,7 +174,7 @@ function SpaceShipGuis.create_condition_gui(parent)
                 end
 
                 -- Set the comparison dropdown
-                local comparison = condition_flow["condition_row_" .. i]["input-flow"]["comparison_dropdown_"..i]
+                local comparison = condition_flow["condition_row_" .. i]["input-flow"]["comparison_dropdown_" .. i]
                 if comparison and condition.condition.comparator then
                     local comparator_map = {
                         ["<"] = 1,
@@ -187,7 +187,7 @@ function SpaceShipGuis.create_condition_gui(parent)
                 end
 
                 -- Set the value field
-                local value_field = condition_flow["condition_row_" .. i]["input-flow"]["condition_value_"..i]
+                local value_field = condition_flow["condition_row_" .. i]["input-flow"]["condition_value_" .. i]
                 if value_field and condition.condition.constant then
                     value_field.text = tostring(condition.condition.constant)
                 end
@@ -230,7 +230,7 @@ function SpaceShipGuis.add_condition_row(event)
 
         -- Adjust the vertical positioning
         button_flow.style.vertical_align = "center"
-        button_flow.style.top_padding = 10    -- Add top padding to center between conditions
+        button_flow.style.top_padding = 10 -- Add top padding to center between conditions
         button_flow.style.minimal_height = 30
 
         -- Add the AND/OR button
@@ -316,7 +316,8 @@ end
 function SpaceShipGuis.check_condition_row(condition_frame)
     -- Get condition number from the frame name
     local condition_number = tonumber(condition_frame.name:match("%d+"))
-    local ship = storage.spaceships[tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
+    local ship = storage.spaceships
+    [tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if not condition_number then return false end
 
     -- Get the signal button, comparison, and value elements
@@ -326,9 +327,9 @@ function SpaceShipGuis.check_condition_row(condition_frame)
     local signal_button = input_flow["condition_type_chooser"]
     local comparison = input_flow["comparison_dropdown_" .. condition_number]
     local value_field = input_flow["condition_value_" .. condition_number]
-    
-    if not (signal_button and signal_button.elem_value and comparison and value_field) then 
-        return false 
+
+    if not (signal_button and signal_button.elem_value and comparison and value_field) then
+        return false
     end
 
     -- Get the signal name and target value
@@ -388,8 +389,8 @@ function SpaceShipGuis.save_wait_conditions(condition_frame)
                 }
 
                 -- Get AND/OR type from logic button if it exists
-                local logic_button = logic_flow["logic_button_flow_" .. i] and 
-                                   logic_flow["logic_button_flow_" .. i]["logic-operator-button_" .. i]
+                local logic_button = logic_flow["logic_button_flow_" .. i] and
+                    logic_flow["logic_button_flow_" .. i]["logic-operator-button_" .. i]
                 if logic_button then
                     condition.compare_type = string.lower(logic_button.caption)
                 end
@@ -424,6 +425,18 @@ function SpaceShipGuis.save_wait_conditions(condition_frame)
     ship.schedule.records[station_number].wait_conditions = wait_conditions
 end
 
+local function get_docking_ports_for_planet(planet_name)
+    local port_names = {}
+    for _, port in pairs(storage.docking_ports or {}) do
+        if port.entity and port.entity.valid and
+            port.entity.surface.platform.space_location.name == planet_name and
+            port.name and port.name ~= "" then
+            table.insert(port_names, port.name)
+        end
+    end
+    return port_names
+end
+
 function SpaceShipGuis.add_station(parent)
     ship = storage.spaceships[tonumber(parent.parent.parent.parent.name:match("(%d+)$"))]
     local stop1holder
@@ -444,7 +457,7 @@ function SpaceShipGuis.add_station(parent)
             local sprite_button = stop1.add {
                 type = "sprite-button",
                 name = "planet-select-button",
-                sprite = "space-location/nauvis", 
+                sprite = "space-location/nauvis",
                 tooltip = "Planet destination",
                 style = "train_schedule_action_button"
             }
@@ -475,6 +488,27 @@ function SpaceShipGuis.add_station(parent)
                         -- Also update the sprite
                         if helpers.is_valid_sprite_path("space-location/" .. name) then
                             sprite_button.sprite = "space-location/" .. name
+                        end
+                        --Get the ports
+                        local port_names = get_docking_ports_for_planet(planet_names[planet_dropdown.selected_index])
+                        if not port_names or next(port_names) == nil then
+                            port_names = {"No Ports"}
+                        end
+                        local port_dropdown = stop1.add {
+                            type = "drop-down",
+                            name = "station-port-dropdown_" .. key,
+                            items = port_names,
+                            selected_index = 1
+                        }
+                        port_dropdown.style.horizontally_stretchable = true
+                        -- Set the stored port if it exists
+                        if ship.schedule.records[key] and ship.schedule.records[key].dock_port then
+                            for p_i, p_name in pairs(port_names) do
+                                if p_name == ship.schedule.records[key].dock_port then
+                                    port_dropdown.selected_index = p_i
+                                    break
+                                end
+                            end
                         end
                         break
                     end
@@ -521,9 +555,11 @@ end
 
 -- Function to close the spaceship control GUI
 function SpaceShipGuis.close_spaceship_gui(event)
+    if not event.entity then return end
+    if event.entity.name ~= "spaceship-control-hub" then return end
     if not event.player_index then return end
     local ship
-        for _, value in pairs(storage.spaceships) do
+    for _, value in pairs(storage.spaceships) do
         if value.hub.unit_number == event.entity.unit_number then
             ship = storage.spaceships[value.id]
         end
@@ -531,12 +567,12 @@ function SpaceShipGuis.close_spaceship_gui(event)
     local player = game.get_player(event.player_index)
     if event.entity and event.entity.name == "spaceship-control-hub" then
         -- Destroy the custom GUI when the main GUI for "spaceship-control-hub" is closed.
-        local custom_gui = player.gui.relative["spaceship-controller-extended-gui-"..ship.name]
+        local custom_gui = player.gui.relative["spaceship-controller-extended-gui-" .. ship.name]
         if custom_gui then
             custom_gui.destroy()
             player.print("extended GUI closed with the main GUI.")
         end
-        local custom_gui = player.gui.relative["spaceship-controller-schedual-gui-"..ship.name]
+        local custom_gui = player.gui.relative["spaceship-controller-schedual-gui-" .. ship.name]
         if custom_gui then
             custom_gui.destroy()
             ship.schedule_gui = nil
@@ -596,6 +632,10 @@ function SpaceShipGuis.handle_button_click(event)
         local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.name:match("(%d+)$"))]
         -- Save the state to storage (left = automatic = true, right = manual = false)
         ship.automatic = (switch.switch_state == "left")
+    elseif button_name == "close-dock-gui" then
+        if player.gui.screen["docking-port-gui"] then
+            player.gui.screen["docking-port-gui"].destroy()
+        end
     else
         player.print("Unknown button clicked: " .. button_name)
     end
@@ -605,7 +645,8 @@ end
 function SpaceShipGuis.handle_dropdown_selection(event)
     player = game.get_player(event.player_index)
     dropdown = event.element
-    local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
+    local ship = storage.spaceships
+    [tonumber(event.element.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if dropdown.name == "surface-dropdown" then
         if dropdown and dropdown.valid then
             local selected_planet = dropdown.items[dropdown.selected_index]
@@ -725,23 +766,120 @@ function SpaceShipGuis.initialize_progress_bars(ship)
     if not ship.schedule then
         return
     end
-    player  = ship.player
+    player = ship.player
     for station_number, record in pairs(ship.schedule.records) do
         -- Find the condition frame for this station
-        local station_frame = player.gui.relative["spaceship-controller-schedual-gui-"..ship.name]
+        local station_frame = player.gui.relative["spaceship-controller-schedual-gui-" .. ship.name]
             ["vertical-flow"]["flow"]["station-scroll-panel"]
             ["station" .. station_number]
 
         if station_frame then
             local condition_flow = station_frame["spaceship-condition-gui"]
                 ["main_container"]["condition_flow"]
-            
+
             -- Update each condition's progress bar
             for _, child in pairs(condition_flow.children) do
                 if child.name:match("^condition_row_%d+$") then
                     SpaceShipGuis.check_condition_row(child)
                 end
             end
+        end
+    end
+end
+
+function SpaceShipGuis.create_docking_port_gui(player, docking_port)
+    local tile = docking_port.surface.get_tile(docking_port.position)
+    if tile.name ~= "space-platform-foundation" then
+        player.print("Space ship docking ports cannot be modified")
+        if player.gui.screen["docking-port-gui"] then
+            player.gui.screen["docking-port-gui"].destroy()
+        end
+        return
+    end
+    -- Store the selected docking port for reference
+    storage.selected_docking_port = docking_port
+
+    -- First close any existing GUI
+    if player.gui.screen["docking-port-gui"] then
+        player.gui.screen["docking-port-gui"].destroy()
+    end
+
+    -- Create new custom GUI in screen instead of relative
+    local dock_gui = player.gui.screen.add {
+        type = "frame",
+        name = "docking-port-gui",
+        caption = "Docking Port Settings",
+        direction = "vertical"
+    }
+
+    -- Center the GUI on screen
+    dock_gui.force_auto_center()
+
+    -- Add name label and textbox
+    local name_flow = dock_gui.add {
+        type = "flow",
+        direction = "horizontal"
+    }
+    name_flow.add {
+        type = "label",
+        caption = "Name:"
+    }
+    name_flow.add {
+        type = "textfield",
+        name = "dock-name-input",
+        text = ""
+    }
+
+    -- Add ship limit label and textbox
+    local limit_flow = dock_gui.add {
+        type = "flow",
+        direction = "horizontal"
+    }
+    limit_flow.add {
+        type = "label",
+        caption = "Ship Limit:"
+    }
+    limit_flow.add {
+        type = "textfield",
+        name = "dock-limit-input",
+        text = "1",
+        numeric = true,
+        allow_decimal = false,
+        allow_negative = false
+    }
+
+    -- Load existing values if they exist
+    if storage.docking_ports[docking_port.unit_number] then
+        local port_data = storage.docking_ports[docking_port.unit_number]
+        name_flow["dock-name-input"].text = port_data.name or ""
+        limit_flow["dock-limit-input"].text = tostring(port_data.ship_limit or 1)
+    end
+
+    -- Add close button at the bottom
+    dock_gui.add {
+        type = "button",
+        name = "close-dock-gui",
+        caption = "Close",
+        style = "back_button" -- Using a built-in button style
+    }
+end
+
+function SpaceShipGuis.handle_text_changed_docking_port(event)
+    local text_field = event.element
+    local player = game.get_player(event.player_index)
+    local docking_port = storage.selected_docking_port
+
+    if not docking_port then return end
+
+    -- Handle dock name changes
+    if text_field.name == "dock-name-input" then
+        storage.docking_ports[docking_port.unit_number].name = text_field.text
+
+        -- Handle ship limit changes
+    elseif text_field.name == "dock-limit-input" then
+        local limit = tonumber(text_field.text)
+        if limit then
+            storage.docking_ports[docking_port.unit_number].ship_limit = limit
         end
     end
 end
