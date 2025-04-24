@@ -317,7 +317,7 @@ function SpaceShipGuis.check_condition_row(condition_frame)
     -- Get condition number from the frame name
     local condition_number = tonumber(condition_frame.name:match("%d+"))
     local ship = storage.spaceships
-    [tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
+        [tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if not condition_number then return false end
 
     -- Get the signal button, comparison, and value elements
@@ -492,7 +492,7 @@ function SpaceShipGuis.add_station(parent)
                         --Get the ports
                         local port_names = get_docking_ports_for_planet(planet_names[planet_dropdown.selected_index])
                         if not port_names or next(port_names) == nil then
-                            port_names = {"No Ports"}
+                            port_names = { "No Ports" }
                         end
                         local port_dropdown = stop1.add {
                             type = "drop-down",
@@ -502,9 +502,9 @@ function SpaceShipGuis.add_station(parent)
                         }
                         port_dropdown.style.horizontally_stretchable = true
                         -- Set the stored port if it exists
-                        if ship.schedule.records[key] and ship.schedule.records[key].dock_port then
+                        if ship.port_records[key] then
                             for p_i, p_name in pairs(port_names) do
-                                if p_name == ship.schedule.records[key].dock_port then
+                                if p_name == ship.port_records[key] then
                                     port_dropdown.selected_index = p_i
                                     break
                                 end
@@ -550,6 +550,7 @@ function SpaceShipGuis.delete_station(event)
     local station_number = tonumber(string.match(event.element.parent.parent.name, "%d+"))
     local ship_id = tonumber(string.match(event.element.parent.parent.parent.parent.parent.parent.name, "%d+"))
     storage.spaceships[ship_id].schedule.records[station_number] = nil
+    storage.spaceships[ship_id].port_records[station_number] = nil
     event.element.parent.parent.destroy()
 end
 
@@ -646,7 +647,7 @@ function SpaceShipGuis.handle_dropdown_selection(event)
     player = game.get_player(event.player_index)
     dropdown = event.element
     local ship = storage.spaceships
-    [tonumber(event.element.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
+        [tonumber(event.element.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     if dropdown.name == "surface-dropdown" then
         if dropdown and dropdown.valid then
             local selected_planet = dropdown.items[dropdown.selected_index]
@@ -672,6 +673,42 @@ function SpaceShipGuis.handle_dropdown_selection(event)
                 if helpers.is_valid_sprite_path("space-location/" .. selected_planet) then
                     dropdown.parent["planet-select-button"].sprite = "space-location/" .. selected_planet
                 end
+                -- Get new ports and update dropdown
+                local new_ports = get_docking_ports_for_planet(selected_planet)
+                if not new_ports or next(new_ports) == nil then
+                    new_ports = { "No Ports" }
+                end
+
+                -- Find or create port dropdown
+                local port_dropdown = dropdown.parent["station-port-dropdown_" .. station_number]
+                if not port_dropdown then
+                    port_dropdown = dropdown.parent.add {
+                        type = "drop-down",
+                        name = "station-port-dropdown_" .. station_number,
+                        items = new_ports,
+                        selected_index = 1
+                    }
+                    port_dropdown.style.horizontally_stretchable = true
+                else
+                    port_dropdown.items = new_ports
+                    port_dropdown.selected_index = 1
+                end
+
+                -- Update the stored port record
+                ship.port_records[station_number] = new_ports[1]
+            end
+        end
+    elseif dropdown.name:match("^station%-port%-dropdown_%d+$") then
+        local station_number = tonumber(dropdown.name:match("%d+"))
+        if station_number then
+            local selected_port = dropdown.items[dropdown.selected_index]
+            if selected_port then
+                -- Initialize the record if it doesn't exist
+                if not ship.port_records[station_number] then
+                    ship.port_records[station_number] = {}
+                end
+                -- Update the station's target planet
+                ship.port_records[station_number] = selected_port
             end
         end
     end

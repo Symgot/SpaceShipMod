@@ -26,6 +26,7 @@ SpaceShip.planet_orbiting   = nil
 SpaceShip.schedule          = {}
 SpaceShip.traveling         = false
 SpaceShip.automatic         = false
+SpaceShip.port_records      = {}
 
 -- Constructor for creating a new SpaceShip
 function SpaceShip.new(name, id, player)
@@ -49,6 +50,7 @@ function SpaceShip.new(name, id, player)
     self.schedule          = {}
     self.traveling         = false
     self.automatic         = false
+    self.port_records      = {}
 
     -- Store the spaceship in the global storage
     return self
@@ -993,7 +995,6 @@ function SpaceShip.check_automatic_behavior()
                 end
             end
         end
-
         ::continue::
     end
 end

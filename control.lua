@@ -105,7 +105,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
                 ship = storage.spaceships[value.id]
             end
         end
-    SpaceShipGuis.create_spaceship_gui(player, ship)
+        SpaceShipGuis.create_spaceship_gui(player, ship)
     end
     if event.entity and event.entity.name == "spaceship-docking-port" then
         -- Close default GUI
@@ -113,7 +113,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
             player.opened = nil
         end
         -- Open our custom GUI
-        SpaceShipGuis.create_docking_port_gui(player,event.entity)
+        SpaceShipGuis.create_docking_port_gui(player, event.entity)
     end
 end)
 
@@ -202,7 +202,7 @@ script.on_event(defines.events.on_tick, function(event)
                                 if condition_flow then
                                     for _, condition in pairs(condition_flow.children) do
                                         if condition.name:match("^condition_row_%d+$") then
-                        SpaceShipGuis.check_condition_row(condition)
+                                            SpaceShipGuis.check_condition_row(condition)
                                         end
                                     end
                                 end
@@ -222,6 +222,9 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
 
     local vehicle = event.entity
     if not vehicle or not vehicle.valid then return end
+
+    local entered = player.vehicle ~= nil
+    local riding_state = player.riding_state
 
     if vehicle.name == "spaceship-control-hub-car" then
         local search_area = {
@@ -313,9 +316,10 @@ end)
 
 script.on_event(defines.events.on_space_platform_changed_state, function(event)
     local plat = event.platform
+    game.print(plat.name.." has been changed state from:"..event.old_state.. ",to:" .. plat.state)
     if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
-        game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
-        hub = plat.surface.find_entities_filtered {name = "spaceship-control-hub" }
+        --game.print("Spaceship Explorer 1 has been changed state from:"..event.old_state.. ",to:" .. plat.state)
+        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         local ship
         for _, value in pairs(storage.spaceships) do
             if value.hub.unit_number == hub[1].unit_number then
@@ -324,8 +328,8 @@ script.on_event(defines.events.on_space_platform_changed_state, function(event)
         end
         ship.planet_orbiting = plat.space_location.name
     elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
-        game.print("Spaceship Explorer 1 has been changed state to:" .. plat.state)
-        hub = plat.surface.find_entities_filtered {name = "spaceship-control-hub" }
+        --game.print("Spaceship Explorer 1 has been changed state from:"..event.old_state.. ",to:" .. plat.state)
+        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         local ship
         for _, value in pairs(storage.spaceships) do
             if value.hub.unit_number == hub[1].unit_number then
