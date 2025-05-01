@@ -27,6 +27,7 @@ SpaceShip.schedule          = {}
 SpaceShip.traveling         = false
 SpaceShip.automatic         = false
 SpaceShip.port_records      = {}
+SpaceShip.docking_port      = nil
 
 -- Constructor for creating a new SpaceShip
 function SpaceShip.new(name, id, player)
@@ -51,6 +52,7 @@ function SpaceShip.new(name, id, player)
     self.traveling         = false
     self.automatic         = false
     self.port_records      = {}
+    self.docking_port      = nil
 
     -- Store the spaceship in the global storage
     return self
@@ -64,16 +66,12 @@ end
 SpaceShip.register_docking_port = function(entity)
     if not storage.docking_ports then SpaceShip.init_docking_ports() end
     local tile = entity.surface.get_tile(entity.position)
-    if tile.name ~= "space-platform-foundation" then
-        game.print("Space ship docking port not added to storage")
-        return
-    end
     storage.docking_ports[entity.unit_number] = {
         entity = entity,
         position = entity.position,
         surface = entity.surface,
-        name = "",  -- Will be set via GUI
-        ship_limit = 1  -- Default limit
+        name = "",     -- Will be set via GUI
+        ship_limit = 1 -- Default limit
     }
 end
 
@@ -435,7 +433,7 @@ function SpaceShip.clone_ship_to_space_platform(ship)
         starter_pack = "space-ship-starter-pack",
     })
     space_platform.apply_starter_pack()
-    temp_entities = space_platform.surface.find_entities_filtered { area = {{-50, -50}, {50, 50}},name = "spaceship-control-hub" }
+    temp_entities = space_platform.surface.find_entities_filtered { area = { { -50, -50 }, { 50, 50 } }, name = "spaceship-control-hub" }
     temp_entities[1].destroy()
     -- Define the destination center position
     local dest_center = { x = 0, y = 0 }
@@ -532,7 +530,7 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick)
         { x = ship.hub.position.x - 50, y = ship.hub.position.y - 50 }, -- Define a reasonable search area around the cloned ship
         { x = ship.hub.position.x + 50, y = ship.hub.position.y + 50 }
     }
-    local temp_entity = player.surface.find_entities_filtered {area = search_area, name = "spaceship-control-hub" }
+    local temp_entity = player.surface.find_entities_filtered { area = search_area, name = "spaceship-control-hub" }
     if not temp_entity or #temp_entity == 0 then
         player.print("Error: No spaceship control hub found.")
         return
@@ -567,6 +565,7 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick)
         flooring_tiles = flooring_tiles,
         entities_on_flooring = entities_on_flooring,
         reference_tile = reference_tile,
+        docking_port = nil,
         scan_radius = scan_radius,
         start_pos = start_pos,
         scan_per_tick = scan_per_tick or 50, -- Default to 1 if not provided
@@ -603,6 +602,11 @@ function SpaceShip.continue_scan_ship()
             player.print("Ship scan completed! Found " ..
                 table_size(state.flooring_tiles) ..
                 " tiles and " .. table_size(temp_entities) .. " entities.")
+            if state.docking_port then
+                ship.docking_port = state.docking_port
+            else
+                player.print("No docking port found on the ship.")
+            end
         end
         storage.scan_state = nil
         return
@@ -642,17 +646,24 @@ function SpaceShip.continue_scan_ship()
             local entities = state.surface.find_entities_filtered({ area = area })
             for _, entity in pairs(entities) do
                 if entity.valid and entity.name ~= "spaceship-flooring" then
-                    if entity.type ~= "resource" and entity.type ~= "character" then
-                        --Make the values if they have not been made yet.
-                        state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or
-                            {}
-                        state.entities_on_flooring[entity.position.x][entity.position.y] = state.entities_on_flooring
-                            [entity.position.x][entity.position.y] or {}
-                        -- Check if the entity is already stored
-                        local value = state.entities_on_flooring[entity.position.x][entity.position.y]
-                        if value ~= entity then
-                            --Add entity to table[table]
-                            state.entities_on_flooring[entity.position.x][entity.position.y] = entity
+                    -- Check if the entity is on a "spaceship-flooring" tile
+                    local entity_tile = state.surface.get_tile(entity.position.x, entity.position.y)
+                    if entity_tile and entity_tile.name == "spaceship-flooring" then
+                        if entity.type ~= "resource" and entity.type ~= "character" then
+                            -- Make the values if they have not been made yet.
+                            state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or {}
+                            state.entities_on_flooring[entity.position.x][entity.position.y] =
+                                state.entities_on_flooring[entity.position.x][entity.position.y] or {}
+
+                            -- Check if the entity is already stored
+                            local value = state.entities_on_flooring[entity.position.x][entity.position.y]
+                            if value ~= entity then
+                                -- Add entity to table[table]
+                                state.entities_on_flooring[entity.position.x][entity.position.y] = entity
+                                if entity.name == "spaceship-docking-port" then
+                                    state.docking_port = entity
+                                end
+                            end
                         end
                     end
                 end
@@ -938,6 +949,7 @@ function SpaceShip.check_circuit_condition(entity, signal_name, comparison, valu
 end
 
 function SpaceShip.check_automatic_behavior()
+    SpaceShip.connect_adjacent_ports()
     -- Check each ship in storage
     for id, ship in pairs(storage.spaceships or {}) do
         -- Skip if not in automatic mode
@@ -996,6 +1008,70 @@ function SpaceShip.check_automatic_behavior()
             end
         end
         ::continue::
+    end
+end
+
+function SpaceShip.connect_adjacent_ports()
+    if not storage.docking_ports then return end
+
+    local function are_adjacent(port1, port2)
+        local dx = math.abs(port1.position.x - port2.position.x)
+        local dy = math.abs(port1.position.y - port2.position.y)
+        return (dx == 1 and dy == 0) or (dx == 0 and dy == 1)
+    end
+
+    for id1, port1 in pairs(storage.docking_ports) do
+        for id2, port2 in pairs(storage.docking_ports) do
+            if id1 ~= id2 and are_adjacent(port1, port2) then
+                -- Ensure both entities are valid
+                if port1.entity.valid and port2.entity.valid then
+                    -- Get the wire connectors for both ports
+                    local red_connector1 = port1.entity.get_wire_connector(defines.wire_connector_id.circuit_red)
+                    local green_connector1 = port1.entity.get_wire_connector(defines.wire_connector_id.circuit_green)
+                    local red_connector2 = port2.entity.get_wire_connector(defines.wire_connector_id.circuit_red)
+                    local green_connector2 = port2.entity.get_wire_connector(defines.wire_connector_id.circuit_green)
+
+                    -- Connect red wires
+                    if red_connector1 and red_connector2 then
+                        red_connector1.connect_to(red_connector2)
+                    end
+
+                    -- Connect green wires
+                    if green_connector1 and green_connector2 then
+                        green_connector1.connect_to(green_connector2)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function SpaceShip.on_platform_state_change(event)
+    -- Get the platform and its associated ship
+    local platform = event.platform
+    if not platform or not platform.valid then
+        game.print("Error: Invalid platform in state change event.")
+        return
+    end
+
+    local ship = platform.ship -- Assuming the platform has a reference to its ship
+    if not ship or not ship.docking_port then
+        game.print("Error: No ship or docking port associated with the platform.")
+        return
+    end
+
+    -- Check if the platform's state changed to 6 (or the desired state)
+    if event.new_state == 6 then
+        -- Pause the platform
+        platform.paused = true
+
+        -- Get the target docking port from the current schedule
+        
+        -- Find the target docking port on the target surface
+        
+        -- Clone the ship to the target surface
+
+        -- Update the ship's surface and docking port
     end
 end
 

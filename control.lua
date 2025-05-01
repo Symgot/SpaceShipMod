@@ -316,19 +316,20 @@ end)
 
 script.on_event(defines.events.on_space_platform_changed_state, function(event)
     local plat = event.platform
-    game.print(plat.name.." has been changed state from:"..event.old_state.. ",to:" .. plat.state)
+    game.print(plat.name .. " has been changed state from:" .. event.old_state .. ",to:" .. plat.state)
     if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
-        --game.print("Spaceship Explorer 1 has been changed state from:"..event.old_state.. ",to:" .. plat.state)
-        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
-        local ship
-        for _, value in pairs(storage.spaceships) do
-            if value.hub.unit_number == hub[1].unit_number then
-                ship = storage.spaceships[value.id]
+        if event.old_state == defines.space_platform_state.on_the_path then
+            hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
+            local ship
+            for _, value in pairs(storage.spaceships) do
+                if value.hub.unit_number == hub[1].unit_number then
+                    ship = storage.spaceships[value.id]
+                end
             end
+            ship.planet_orbiting = plat.space_location.name
+            SpaceShip.on_platform_state_change(event)
         end
-        ship.planet_orbiting = plat.space_location.name
     elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
-        --game.print("Spaceship Explorer 1 has been changed state from:"..event.old_state.. ",to:" .. plat.state)
         hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         local ship
         for _, value in pairs(storage.spaceships) do

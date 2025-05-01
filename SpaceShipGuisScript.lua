@@ -633,6 +633,7 @@ function SpaceShipGuis.handle_button_click(event)
         local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.name:match("(%d+)$"))]
         -- Save the state to storage (left = automatic = true, right = manual = false)
         ship.automatic = (switch.switch_state == "left")
+        ship.scanned = false
     elseif button_name == "close-dock-gui" then
         if player.gui.screen["docking-port-gui"] then
             player.gui.screen["docking-port-gui"].destroy()
