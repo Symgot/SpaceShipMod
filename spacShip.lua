@@ -362,7 +362,7 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     })
 
     local search_area = {
-        { x = dest_center.x - 50, y = dest_center.y - 50 }, -- Define a reasonable search area around the cloned ship
+        { x = dest_center.x - 50, y = dest_center.y - 50 }, -- someday i need to change this to on cloned event
         { x = dest_center.x + 50, y = dest_center.y + 50 }
     }
 
@@ -377,6 +377,12 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     end
     ship.hub = control_hub
 
+    --working on this, need to find a way ot detect new docking port and restore it to storage.
+    local docking_port = dest_surface.find_entities_filtered({
+        area = search_area,
+        name = "spaceship-docking-port"
+    })
+    
     -- Remove entities from the original surface
     for _, entity in pairs(ship.entities) do
         if entity and entity.valid then
@@ -404,7 +410,7 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     else
         game.print("Error: No valid hidden tiles to set.")
     end
-    --SpaceShip.scan_ship(ship.player)
+    SpaceShip.start_scan_ship(ship, 50, 1)
 end
 
 -- Function to clone the ship to a new space platform surface
@@ -518,9 +524,10 @@ function SpaceShip.clone_ship_to_space_platform(ship)
     ship.surface = space_platform.surface
     ship.hub = entities_in_area2[1]
     ship.traveling = true
+    SpaceShip.start_scan_ship(ship, 50, 1)
 end
 
-function SpaceShip.start_scan_ship(ship, scan_per_tick)
+function SpaceShip.start_scan_ship(ship, scan_per_tick, tick_amount)
     player = ship.player
     if storage.scan_state then
         player.print("Scan is in progress, please wait.")
@@ -568,12 +575,11 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick)
         docking_port = nil,
         scan_radius = scan_radius,
         start_pos = start_pos,
-        scan_per_tick = scan_per_tick or 50, -- Default to 1 if not provided
-        tick_counter = 0,                    -- Counter to track ticks for progress updates
-        tick_amount = 1
+        scan_per_tick = scan_per_tick or 1, -- how many tiles to scan per tick
+        tick_counter = 0,                   -- Counter to track ticks for progress updates
+        tick_amount = tick_amount or 1      --how ofter to keep scanning, higher=slower
     }
     -- Start the scanning process
-    script.on_nth_tick(storage.scan_state.tick_amount, SpaceShip.continue_scan_ship)
     player.print("Ship scan started. Scanning up to " ..
         storage.scan_state.scan_per_tick .. " tiles per " .. storage.scan_state.tick_amount .. " tick(s).")
 end
@@ -581,8 +587,7 @@ end
 function SpaceShip.continue_scan_ship()
     local state = storage.scan_state
     if not state or #state.tiles_to_check == 0 then
-        -- Scanning is complete
-        --script.on_nth_tick(storage.scan_state.tick_amount, nil) -- Stop the scanning process
+        -- Scanning is completel
         if state then
             local temp_entities = {}
             for _, x in pairs(state.entities_on_flooring) do --check through x tables
@@ -651,7 +656,8 @@ function SpaceShip.continue_scan_ship()
                     if entity_tile and entity_tile.name == "spaceship-flooring" then
                         if entity.type ~= "resource" and entity.type ~= "character" then
                             -- Make the values if they have not been made yet.
-                            state.entities_on_flooring[entity.position.x] = state.entities_on_flooring[entity.position.x] or {}
+                            state.entities_on_flooring[entity.position.x] = state.entities_on_flooring
+                                [entity.position.x] or {}
                             state.entities_on_flooring[entity.position.x][entity.position.y] =
                                 state.entities_on_flooring[entity.position.x][entity.position.y] or {}
 
@@ -1053,25 +1059,66 @@ function SpaceShip.on_platform_state_change(event)
         game.print("Error: Invalid platform in state change event.")
         return
     end
-
-    local ship = platform.ship -- Assuming the platform has a reference to its ship
+    local hub = platform.surface.find_entities_filtered({
+        name = "spaceship-control-hub",
+        area = {
+            { x = -20, y = -20 },
+            { x = 20,  y = 20 }
+        }
+    })[1]
+    local ship
+    for key, value in pairs(storage.spaceships) do
+        if value.hub.unit_number == hub.unit_number then
+            ship = storage.spaceships[key]
+        end
+    end
     if not ship or not ship.docking_port then
         game.print("Error: No ship or docking port associated with the platform.")
         return
     end
 
-    -- Check if the platform's state changed to 6 (or the desired state)
-    if event.new_state == 6 then
+    -- Check if the platform's state changed to 6
+    if event.platform.state == 6 then
         -- Pause the platform
         platform.paused = true
 
         -- Get the target docking port from the current schedule
-        
-        -- Find the target docking port on the target surface
-        
+        local schedule = ship.schedule
+        if not schedule or not schedule.records or not schedule.records[schedule.current] then
+            game.print("Error: Invalid schedule for ship " .. ship.name)
+            return
+        end
+        local target_docking_port
+        for _, port in pairs(storage.docking_ports) do
+            if port.name == ship.port_records[schedule.current] then --port records keys are tied to station number.
+                target_docking_port = port.surface.find_entities_filtered({
+                    name = "spaceship-docking-port",
+                    area = {
+                        { x = port.position.x - 5, y = port.position.y - 5 },
+                        { x = port.position.x + 5, y = port.position.y + 5 }
+                    }
+                })[1]
+            end
+        end
+
+        if not target_docking_port then
+            game.print("Error: Target docking port not found on surface " .. schedule.records[schedule.current].station)
+            return
+        end
+
+        -- Align the ship's docking port with the target docking port
+        local offset = {
+            x = target_docking_port.position.x - ship.docking_port.position.x +1,
+            y = target_docking_port.position.y - ship.docking_port.position.y
+        }
+
         -- Clone the ship to the target surface
+        SpaceShip.clone_ship_area(ship, target_docking_port.surface, offset, {})
 
         -- Update the ship's surface and docking port
+        ship.surface = target_docking_port.surface
+
+        game.print("Ship " .. ship.name .. " successfully cloned to surface " .. target_docking_port.surface.name)
     end
 end
 

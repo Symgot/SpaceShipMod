@@ -185,7 +185,7 @@ script.on_event(defines.events.on_tick, function(event)
         }
     end
     ::continue::
-    if game.tick % 10 == 0 and storage.scan_state then
+    if storage.scan_state and game.tick % 10 == storage.scan_state.tick_amount then
         SpaceShip.continue_scan_ship()
     end
 
