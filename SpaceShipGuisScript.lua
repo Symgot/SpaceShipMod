@@ -428,7 +428,7 @@ end
 local function get_docking_ports_for_planet(planet_name)
     local port_names = {}
     for _, port in pairs(storage.docking_ports or {}) do
-        if port.entity and port.entity.valid and
+        if port.entity and port.entity.valid and port.entity.surface.platform.space_location and
             port.entity.surface.platform.space_location.name == planet_name and
             port.name and port.name ~= "" then
             table.insert(port_names, port.name)
@@ -589,7 +589,7 @@ function SpaceShipGuis.handle_button_click(event)
     if button_name == "scan-ship" then -- Call the scan_ship function
         player.print("Scanning the ship...")
         local ship = storage.spaceships[tonumber(event.element.parent.name:match("(%d+)$"))]
-        SpaceShip.start_scan_ship(ship,50)
+        SpaceShip.start_scan_ship(ship)
     elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
         if storage.spaceships[storage.opened_entity_id].scanned then
             player.print("Spaceship takeoff initiated!")

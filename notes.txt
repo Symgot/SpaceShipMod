@@ -35,7 +35,10 @@ storage.spaceship structure
     planet_orbiting = string (need to know this for automation, could potentialy use surface to get it as well if more efficient.)
 }
 
-
-update storage to whatever port is selected
-add check to not let ship go into auto if there is not a port selected
-when ship reaches destination (could check state change and space location?) clone ship to port.
+todo:
+-add check to not let ship go into auto if there is not a port selected
+-add docking port ship limit logic
+-add more conditions
+-Change to allow robots in space? (that way everything doesn't have to be belted)
+-Adjust the clone function to run over multiple ticks when the player is not on the ship (don't want your 200 ships dropping your UPS to 1 when the big logistics get going)
+-Code clean up and restructuring

@@ -370,3 +370,12 @@ script.on_event(defines.events.on_gui_switch_state_changed, function(event)
         SpaceShipGuis.handle_button_click(event)
     end
 end)
+
+script.on_event(defines.events.on_entity_cloned, function(event)
+    -- Example: Print information about the cloned entity
+    game.print("Entity cloned: " .. event.source.name .. " -> " .. event.destination.name)
+    SpaceShip.handle_cloned_storage_update(event)
+end, {
+    { filter = "name", name = "spaceship-control-hub" },
+    { filter = "name", name = "spaceship-docking-port" }
+})

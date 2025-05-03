@@ -23,11 +23,9 @@ local floorRecipe = table.deepcopy(data.raw["recipe"]["space-platform-foundation
 local wallItem = table.deepcopy(data.raw["item"]["stone-wall"])
 local wallRecipe = table.deepcopy(data.raw["recipe"]["stone-wall"])
 local wallEntity = table.deepcopy(data.raw["wall"]["stone-wall"])
---local controlHubEntity = table.deepcopy(data.raw["container"]["steel-chest"])
 local controlHubEntityHub = table.deepcopy(data.raw["space-platform-hub"]["space-platform-hub"])
 local controlHubItem = table.deepcopy(data.raw["item"]["cargo-bay"])
 local controlHubRecipe = table.deepcopy(data.raw["recipe"]["cargo-bay"])
---local controlHubEntityCar = table.deepcopy(data.raw["car"]["car"])
 local controlHubItemCar = table.deepcopy(data.raw["item-with-entity-data"]["car"])
 
 dockingPortRecipe.name = "spaceship-docking-port"
@@ -43,7 +41,6 @@ dockingPortItem.place_result = "spaceship-docking-port"
 
 dockingPortEntity.name = "spaceship-docking-port"
 dockingPortEntity.localised_name = "Spaceship Docking Port"
-dockingPortEntity.place_result = "spaceship-docking-port"
 dockingPortEntity.minable = { mining_time = 0.2, result = "spaceship-docking-port" }
 
 controlHubItemCar.name = "spaceship-control-hub-car"
@@ -183,8 +180,8 @@ data:extend({
         name = "space-ship-starter-pack",
         localised_name = "Space Platform Starter Pack",
         ingredients = { { type = "item", name = "iron-plate", amount = 1 } },
-        hidden = false,
-        enabled = true,
+        hidden = true,
+        enabled = false,
         results = { { type = "item", name = "space-ship-starter-pack", amount = 10 } },
         main_product = "space-ship-starter-pack",
         icon = "__space-age__/graphics/icons/thruster.png",
