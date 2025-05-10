@@ -159,9 +159,11 @@ function SpaceShipGuis.create_condition_gui(parent)
             -- Then set their values
             for i, condition in pairs(schedule.records[station_number].wait_conditions) do
                 -- Set the AND/OR button state if it exists
-                local logic_button = logic_flow["logic-operator-button_" .. i]
-                if logic_button and condition.compare_type then
-                    logic_button.caption = string.upper(condition.compare_type)
+                if logic_flow["logic_button_flow_"..i] then
+                    local logic_button = logic_flow["logic_button_flow_"..i]["logic-operator-button_" .. i]
+                    if logic_button and condition.compare_type then
+                        logic_button.caption = string.upper(condition.compare_type)
+                    end
                 end
 
                 -- Set the signal chooser with the stored signal

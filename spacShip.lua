@@ -476,12 +476,12 @@ function SpaceShip.clone_ship_to_space_platform(ship)
             -- Teleport the player to the control hub car and make them enter it
             ship.player_in_cockpit.teleport(control_hub_car.position, control_hub_car.surface)
             ship.player_in_cockpit.driving = true -- Make the player enter the vehicle
-        ship.player_in_cockpit.print("You have entered the spaceship control hub car at the destination.")
+            ship.player_in_cockpit.print("You have entered the spaceship control hub car at the destination.")
         else
             ship.player_in_cockpit.print("Error: Unable to find the spaceship control hub car at the destination.")
         end
     end
-    
+
     player.print("Ship successfully cloned to the new space platform: ")
     ship.own_surface = true
     ship.planet_orbiting = OG_surface
@@ -530,8 +530,8 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick, tick_amount)
         scan_radius = scan_radius,
         start_pos = start_pos,
         scan_per_tick = scan_per_tick or 60, -- how many tiles to scan per tick
-        tick_counter = 0,                   -- Counter to track ticks for progress updates
-        tick_amount = tick_amount or 1      --how ofter to keep scanning, higher=slower
+        tick_counter = 0,                    -- Counter to track ticks for progress updates
+        tick_amount = tick_amount or 1       --how ofter to keep scanning, higher=slower
     }
     -- Start the scanning process
     player.print("Ship scan started. Scanning up to " ..
@@ -648,7 +648,7 @@ function SpaceShip.continue_scan_ship()
         local total_tiles = table_size(state.scanned_tiles)
         local remaining_tiles = #state.tiles_to_check
         player.print("Scanning progress: " .. total_tiles .. " tiles scanned, " .. remaining_tiles .. " tiles remaining.")
-    end]]--
+    end]] --
 end
 
 function SpaceShip.dock_ship(player)
@@ -908,6 +908,54 @@ function SpaceShip.check_circuit_condition(entity, signal_name, comparison, valu
     return false
 end
 
+function SpaceShip.check_schedule_conditions(ship)
+    if not ship or not ship.schedule or not ship.schedule.records then
+        return false -- Return false if the ship or schedule is invalid
+    end
+
+    local current_station = ship.schedule.records[ship.schedule.current]
+    if not current_station or not current_station.wait_conditions then
+        return false -- Return false if there are no conditions to check
+    end
+
+    local result = true          -- Start with `true` for `and` logic
+    local temp_and_result = true -- Temporary result for grouped `and` conditions
+
+    for i, condition in ipairs(current_station.wait_conditions) do
+        local condition_met = SpaceShip.check_circuit_condition(
+            ship.hub,
+            condition.condition.first_signal.name,
+            condition.condition.comparator,
+            condition.condition.constant
+        )
+
+        if condition.compare_type == "and" then
+            -- Combine with the temporary `and` result
+            temp_and_result = temp_and_result and condition_met
+        elseif condition.compare_type == "or" then
+            -- Apply the grouped `and` result to the main result
+            result = result or temp_and_result
+            temp_and_result = condition_met -- Reset for the next group
+        else
+            -- If no `and` or `or`, treat it as a standalone condition
+            temp_and_result = condition_met
+        end
+
+        -- If the result is already false for `and`, or true for `or`, we can short-circuit
+        if (condition.compare_type == "and" and not temp_and_result) or (condition.compare_type == "or" and result) then
+            break
+        end
+    end
+
+    -- Apply the final grouped `and` result to the main result
+    if not result or not temp_and_result then
+        result = false
+    else
+        result = result and temp_and_result
+    end
+    return result
+end
+
 function SpaceShip.check_automatic_behavior()
     SpaceShip.connect_adjacent_ports()
     -- Check each ship in storage
@@ -934,18 +982,7 @@ function SpaceShip.check_automatic_behavior()
         if ship.own_surface or not ship.scanned then goto continue end
         if ship.surface.platform.space_location.name == current_station.station then
             -- Check all wait conditions for current station
-            local all_conditions_met = true
-            for _, condition in pairs(current_station.wait_conditions) do
-                if not SpaceShip.check_circuit_condition(
-                        ship.hub,
-                        condition.condition.first_signal.name,
-                        condition.condition.comparator,
-                        condition.condition.constant
-                    ) then
-                    all_conditions_met = false
-                    break
-                end
-            end
+            local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
 
             -- If all conditions are met, prepare for travel
             if all_conditions_met then
@@ -1037,7 +1074,7 @@ function SpaceShip.on_platform_state_change(event)
     if event.platform.state == 6 then
         -- Store platform reference for later deletion
         local old_platform = platform
-        
+
         -- Pause the platform
         platform.paused = true
 
@@ -1073,7 +1110,7 @@ function SpaceShip.on_platform_state_change(event)
 
         -- Clone the ship to the target surface
         SpaceShip.clone_ship_area(ship, target_docking_port.surface, offset, {})
-        
+
         -- Update the ship's surface and docking port
         ship.surface = target_docking_port.surface
         ship.own_surface = false
