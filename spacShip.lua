@@ -70,8 +70,9 @@ SpaceShip.register_docking_port = function(entity)
         entity = entity,
         position = entity.position,
         surface = entity.surface,
-        name = "",     -- Will be set via GUI
-        ship_limit = 1 -- Default limit
+        name = "",      -- Will be set via GUI
+        ship_limit = 1, -- Default limit
+        ship_docked = nil
     }
 end
 
@@ -314,6 +315,31 @@ function SpaceShip.add_or_change_station(ship, to, from)
     if ship.platform then
         ship.platform.schedule = ship.schedule
     end
+end
+
+function SpaceShip.delete_station(ship, station_index)
+    if not ship or not ship.schedule or not ship.schedule.records then
+        game.print("Error: Invalid ship or schedule.")
+        return
+    end
+
+    -- Validate the station index
+    if not ship.schedule.records[station_index] then
+        game.print("Error: Station index " .. station_index .. " does not exist in the schedule.")
+        return
+    end
+
+    -- Remove the station from the schedule
+    table.remove(ship.schedule.records, station_index)
+
+    local temp_schedule = {}
+    for key, value in pairs(ship.schedule.records) do
+        table.insert(temp_schedule, value)
+    end
+
+    ship.schedule.records = temp_schedule
+    
+    game.print("Station " .. station_index .. " removed from ship " .. ship.name .. ".")
 end
 
 -- Clone all tiles and entities from the old ship to the new ship
@@ -978,7 +1004,7 @@ function SpaceShip.check_automatic_behavior()
             goto continue
         end
 
-        -- Check if ship is orbiting the current station
+        -- Check if ship is docked at the current station
         if ship.own_surface or not ship.scanned then goto continue end
         if ship.surface.platform.space_location.name == current_station.station then
             -- Check all wait conditions for current station
@@ -1085,8 +1111,10 @@ function SpaceShip.on_platform_state_change(event)
             return
         end
         local target_docking_port
-        for _, port in pairs(storage.docking_ports) do
+        local storage_docking_port
+        for key, port in pairs(storage.docking_ports) do
             if port.name == ship.port_records[schedule.current] then
+                storage_docking_port = key
                 target_docking_port = port.surface.find_entities_filtered({
                     name = "spaceship-docking-port",
                     area = {
@@ -1099,6 +1127,11 @@ function SpaceShip.on_platform_state_change(event)
 
         if not target_docking_port then
             game.print("Error: Target docking port not found on surface " .. schedule.records[schedule.current].station)
+            return
+        end
+
+        if storage.docking_ports[storage_docking_port].ship_docked then
+            game.print("Warning: Target docking port already has docked ship " .. ship.port_records[schedule.current])
             return
         end
 
@@ -1115,6 +1148,7 @@ function SpaceShip.on_platform_state_change(event)
         ship.surface = target_docking_port.surface
         ship.own_surface = false
         ship.traveling = false
+        storage.docking_ports[storage_docking_port].ship_docked = true
         game.print("Ship " .. ship.name .. " successfully cloned to surface " .. target_docking_port.surface.name)
 
         -- Delete the old platform surface

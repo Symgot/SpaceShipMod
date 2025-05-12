@@ -12,7 +12,7 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
     if relative_gui["spaceship-controller-schedual-gui-" .. ship.name] then
         return
     end
-
+    local ship_tag_number = tonumber(ship.id)
     -- Initialize storage if needed
     storage = storage or {}
     storage.spaceships = storage.spaceships or {}
@@ -25,7 +25,8 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
         anchor = {
             gui = defines.relative_gui_type.container_gui,
             position = defines.relative_gui_position.left
-        }
+        },
+        tags = { ship = ship_tag_number }
     }
     local schedual_gui = relative_gui.add {
         type = "frame",
@@ -34,21 +35,23 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
         anchor = {
             gui = defines.relative_gui_type.container_gui,
             position = defines.relative_gui_position.right
-        }
+        },
+        tags = { ship = ship_tag_number }
     }
     ship.schedule_gui = schedual_gui
     --main panel
-    flow = schedual_gui.add { type = "flow", name = "vertical-flow", direction = "vertical" }
+    flow = schedual_gui.add { type = "flow", name = "vertical-flow", direction = "vertical", tags = { ship = ship_tag_number } }
     --switch panel
-    selector = flow.add { type = "flow", name = "switch-flow", direction = "horizontal" }
-    selectorlabel = selector.add { type = "label", caption = "Automatic", name = "auto" }
+    selector = flow.add { type = "flow", name = "switch-flow", direction = "horizontal", tags = { ship = ship_tag_number } }
+    selectorlabel = selector.add { type = "label", caption = "Automatic", name = "auto", tags = { ship = ship_tag_number } }
     local switch = selector.add {
         type = "switch",
         name = "auto-manual-switch",
         allow_none_state = false,
-        switch_state = "left" -- Default to automatic
+        switch_state = "left",
+        tags = { ship = ship_tag_number }
     }
-    selectorlabel = selector.add { type = "label", caption = "Paused", name = "paused" }
+    selectorlabel = selector.add { type = "label", caption = "Paused", name = "paused", tags = { ship = ship_tag_number } }
 
     -- Set switch state from storage if it exists
     if ship.automatic ~= nil then
@@ -59,14 +62,14 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
     end
 
     --schedual panel
-    schedualflow = flow.add { type = "flow", name = "flow" }
-    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always", name = "station-scroll-panel" }
-    schedbutton = schedualscroll.add { type = "button", style = "train_schedule_add_station_button", name = "add-station", caption = { "gui-train.add-station" } }
+    schedualflow = flow.add { type = "flow", name = "flow", tags = { ship = ship_tag_number } }
+    schedualscroll = schedualflow.add { type = "scroll-pane", style = "train_schedule_scroll_pane", vertical_scroll_policy = "always", name = "station-scroll-panel", tags = { ship = ship_tag_number } }
+    schedbutton = schedualscroll.add { type = "button", style = "train_schedule_add_station_button", name = "add-station", caption = { "gui-train.add-station" }, tags = { ship = ship_tag_number } }
     --test station
 
     if ship.schedule and ship.schedule.records then
         for _, value in pairs(ship.schedule.records) do
-            SpaceShipGuis.add_station(schedualscroll)
+            SpaceShipGuis.add_station(schedualscroll, ship_tag_number)
         end
         -- Initialize all progress bars after creating stations
         SpaceShipGuis.initialize_progress_bars(ship)
@@ -84,17 +87,18 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
         type = "drop-down",
         name = "surface-dropdown",
         items = planet_names,
-        selected_index = 1 -- Default to the first planet
+        selected_index = 1,
+        tags = { ship = ship_tag_number }
     }
 
-    custom_gui.add { type = "button", name = "scan-ship", caption = "Scan Ship" }
-    custom_gui.add { type = "button", name = "ship-platform", caption = "Travel Mode" }
-    custom_gui.add { type = "button", name = "ship-dock", caption = "Dock" }
-    custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff" }
-    custom_gui.add { type = "button", name = "close-spaceship-extended-gui", caption = "Close" }
+    custom_gui.add { type = "button", name = "scan-ship", caption = "Scan Ship", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "ship-platform", caption = "Travel Mode", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "ship-dock", caption = "Dock", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "close-spaceship-extended-gui", caption = "Close", tags = { ship = ship_tag_number } }
 end
 
-function SpaceShipGuis.create_condition_gui(parent)
+function SpaceShipGuis.create_condition_gui(parent, ship_station_number, station_number)
     -- Remove any existing GUI
     parent = parent.parent
     if parent["spaceship-condition-gui"] then
@@ -106,20 +110,23 @@ function SpaceShipGuis.create_condition_gui(parent)
         type = "frame",
         name = "spaceship-condition-gui",
         direction = "vertical",
+        tags = { ship = ship_station_number, station = station_number }
     }
 
     -- Create horizontal flow to hold logic buttons and conditions
     local main_container = frame.add {
         type = "flow",
         name = "main_container",
-        direction = "horizontal"
+        direction = "horizontal",
+        tags = { ship = ship_station_number, station = station_number }
     }
 
     -- Add flow for logic buttons on the left
     local logic_flow = main_container.add {
         type = "flow",
         name = "logic_flow",
-        direction = "vertical"
+        direction = "vertical",
+        tags = { ship = ship_station_number, station = station_number }
     }
     logic_flow.style.vertical_align = "center"
     logic_flow.style.minimal_width = 50
@@ -128,7 +135,8 @@ function SpaceShipGuis.create_condition_gui(parent)
     local condition_flow = main_container.add {
         type = "flow",
         name = "condition_flow",
-        direction = "vertical"
+        direction = "vertical",
+        tags = { ship = ship_station_number, station = station_number }
     }
     condition_flow.style.horizontal_align = "right"
     condition_flow.style.horizontally_stretchable = true
@@ -138,9 +146,9 @@ function SpaceShipGuis.create_condition_gui(parent)
         type = "button",
         name = "add-wait-condition",
         caption = "+ Add wait condition",
-        style = "train_schedule_add_wait_condition_button"
+        style = "train_schedule_add_wait_condition_button",
+        tags = { ship = ship_station_number, station = station_number }
     }
-    station_number = tonumber(parent.name:match("%d+"))
     local ship = storage.spaceships[tonumber(frame.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
     -- Check if we have stored conditions to apply
     if ship.schedule then
@@ -153,14 +161,14 @@ function SpaceShipGuis.create_condition_gui(parent)
                     element = frame["add-wait-condition"],
                     player_index = game.get_player(1).index -- Use first player as dummy
                 }
-                SpaceShipGuis.add_condition_row(fake_event)
+                SpaceShipGuis.add_condition_row(fake_event, ship_station_number, station_number)
             end
 
             -- Then set their values
             for i, condition in pairs(schedule.records[station_number].wait_conditions) do
                 -- Set the AND/OR button state if it exists
-                if logic_flow["logic_button_flow_"..i] then
-                    local logic_button = logic_flow["logic_button_flow_"..i]["logic-operator-button_" .. i]
+                if logic_flow["logic_button_flow_" .. i] then
+                    local logic_button = logic_flow["logic_button_flow_" .. i]["logic-operator-button_" .. i]
                     if logic_button and condition.compare_type then
                         logic_button.caption = string.upper(condition.compare_type)
                     end
@@ -200,22 +208,23 @@ function SpaceShipGuis.create_condition_gui(parent)
     return frame
 end
 
-function SpaceShipGuis.add_condition_row(event)
+function SpaceShipGuis.add_condition_row(event, ship_station_number, station_tag_number)
     local frame = event.element.parent
     if not frame then return end
 
     local main_container = frame["main_container"]
     local logic_flow = main_container["logic_flow"]
     local condition_flow = main_container["condition_flow"]
-    local num_conditions = #condition_flow.children
+    local num_conditions = #condition_flow.children + 1
 
     -- If there are existing conditions, add an AND/OR button
-    if num_conditions > 0 then
+    if num_conditions > 1 then
         -- If this is the first AND/OR button, add an empty widget for spacing
-        if num_conditions == 1 and not logic_flow["logic_button_spacer"] then
+        if num_conditions == 2 and not logic_flow["logic_button_spacer"] then
             local spacer = logic_flow.add {
                 type = "empty-widget",
                 name = "logic_button_spacer",
+                tags = { ship = ship_station_number, station = station_tag_number }
             }
             spacer.style.minimal_height = 12 -- Adjust this value to control initial spacing
             spacer.style.natural_height = 12
@@ -226,7 +235,8 @@ function SpaceShipGuis.add_condition_row(event)
             button_flow = logic_flow.add {
                 type = "flow",
                 direction = "vertical",
-                name = "logic_button_flow_" .. num_conditions
+                name = "logic_button_flow_" .. num_conditions,
+                tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
             }
         end
 
@@ -238,18 +248,22 @@ function SpaceShipGuis.add_condition_row(event)
         -- Add the AND/OR button
         local logic_button = button_flow.add {
             type = "button",
-            name = "logic-operator-button_" .. num_conditions,
+            name = "logic-operator-button",
             caption = "AND",
-            style = "train_schedule_comparison_type_button"
+            style = "train_schedule_comparison_type_button",
+            tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
         }
         logic_button.style.minimal_height = 30
+    else
+        --num_conditions = 1
     end
 
     -- Create condition frame with progress bar
     local condition_frame = condition_flow.add {
         type = "frame",
-        name = "condition_row_" .. num_conditions + 1,
-        style = "train_schedule_station_frame"
+        name = "condition_row_" .. num_conditions,
+        style = "train_schedule_station_frame",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
     condition_frame.style.horizontally_stretchable = true
 
@@ -258,7 +272,8 @@ function SpaceShipGuis.add_condition_row(event)
         name = "condition_progress",
         value = 0,
         embed_text_in_bar = true,
-        caption = "number"
+        caption = "number",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
     progress.style.horizontally_stretchable = true
     progress.style.bar_width = 32
@@ -272,7 +287,8 @@ function SpaceShipGuis.add_condition_row(event)
     local row = condition_frame.add {
         type = "flow",
         direction = "horizontal",
-        name = "input-flow"
+        name = "input-flow",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
     row.style.horizontal_align = "center"
     row.style.vertical_align = "center"
@@ -281,33 +297,37 @@ function SpaceShipGuis.add_condition_row(event)
         type = "choose-elem-button",
         name = "condition_type_chooser",
         elem_type = "signal",
-        style = "train_schedule_item_select_button"
+        style = "train_schedule_item_select_button",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
 
     row.add {
         type = "drop-down",
-        name = "comparison_dropdown_" .. num_conditions + 1,
+        name = "comparison_dropdown_" .. num_conditions,
         items = { "<", "<=", "=", ">=", ">" },
         selected_index = 3,
-        style = "train_schedule_circuit_condition_comparator_dropdown"
+        style = "train_schedule_circuit_condition_comparator_dropdown",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
 
     local value_field = row.add {
         type = "textfield",
-        name = "condition_value_" .. num_conditions + 1,
+        name = "condition_value_" .. num_conditions,
         text = "0",
         numeric = true,
         allow_negative = true,
-        style = "console_input_textfield"
+        style = "console_input_textfield",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
     value_field.style.minimal_width = 50
     value_field.style.maximal_width = 100
 
     row.add {
         type = "sprite-button",
-        name = "delete_condition_button_" .. num_conditions + 1,
+        name = "delete_condition_button_" .. num_conditions,
         sprite = "virtual-signal/signal-X",
-        style = "train_schedule_delete_button"
+        style = "train_schedule_delete_button",
+        tags = { ship = ship_station_number, station = station_tag_number, condition = num_conditions }
     }
 
     -- Initialize the progress bar for the new condition
@@ -317,18 +337,16 @@ end
 -- Add this after setting up the condition row GUI elements
 function SpaceShipGuis.check_condition_row(condition_frame)
     -- Get condition number from the frame name
-    local condition_number = tonumber(condition_frame.name:match("%d+"))
-    local ship = storage.spaceships
-        [tonumber(condition_frame.parent.parent.parent.parent.parent.parent.parent.parent.name:match("(%d+)$"))]
-    if not condition_number then return false end
+    local ship = storage.spaceships[condition_frame.tags.ship]
+    if not condition_frame.tags.condition then return false end
 
     -- Get the signal button, comparison, and value elements
     local input_flow = condition_frame["input-flow"]
     if not input_flow then return false end
 
     local signal_button = input_flow["condition_type_chooser"]
-    local comparison = input_flow["comparison_dropdown_" .. condition_number]
-    local value_field = input_flow["condition_value_" .. condition_number]
+    local comparison = input_flow["comparison_dropdown_" .. condition_frame.tags.condition]
+    local value_field = input_flow["condition_value_" .. condition_frame.tags.condition]
 
     if not (signal_button and signal_button.elem_value and comparison and value_field) then
         return false
@@ -439,7 +457,7 @@ local function get_docking_ports_for_planet(planet_name)
     return port_names
 end
 
-function SpaceShipGuis.add_station(parent)
+function SpaceShipGuis.add_station(parent, ship_tag_number)
     ship = storage.spaceships[tonumber(parent.parent.parent.parent.name:match("(%d+)$"))]
     local stop1holder
     for key, value in pairs(ship.schedule.records) do
@@ -450,9 +468,14 @@ function SpaceShipGuis.add_station(parent)
             end
         end
         if not found then
-            stop1holder = parent.add { type = "flow", direction = "vertical", name = "station" .. key }
-            local stop1 = stop1holder.add { type = "frame", style = "train_schedule_station_frame" }
-            SpaceShipGuis.create_condition_gui(stop1)
+            stop1holder = parent.add
+                {
+                    type = "flow",
+                    direction = "vertical",
+                    name = "station" .. key,
+                    tags = { ship = ship_tag_number, station = key } }
+            local stop1 = stop1holder.add { type = "frame", style = "train_schedule_station_frame", tags = { ship = ship_tag_number, station = key } }
+            SpaceShipGuis.create_condition_gui(stop1, ship_tag_number, key)
             stop1.style.natural_width = 400
             stop1.style.natural_height = 50
             stop1.style.horizontally_stretchable = true
@@ -461,7 +484,8 @@ function SpaceShipGuis.add_station(parent)
                 name = "planet-select-button",
                 sprite = "space-location/nauvis",
                 tooltip = "Planet destination",
-                style = "train_schedule_action_button"
+                style = "train_schedule_action_button",
+                tags = { ship = ship_tag_number, station = key }
             }
 
             -- Get list of planet surfaces
@@ -477,7 +501,8 @@ function SpaceShipGuis.add_station(parent)
                 type = "drop-down",
                 name = "station-planet-dropdown_" .. key,
                 items = planet_names,
-                selected_index = 1
+                selected_index = 1,
+                tags = { ship = ship_tag_number, station = key }
             }
             planet_dropdown.style.horizontally_stretchable = true
 
@@ -500,7 +525,8 @@ function SpaceShipGuis.add_station(parent)
                             type = "drop-down",
                             name = "station-port-dropdown_" .. key,
                             items = port_names,
-                            selected_index = 1
+                            selected_index = 1,
+                            tags = { ship = ship_tag_number, station = key }
                         }
                         port_dropdown.style.horizontally_stretchable = true
                         -- Set the stored port if it exists
@@ -523,7 +549,8 @@ function SpaceShipGuis.add_station(parent)
                 name = "moveup",
                 sprite = "virtual-signal/signal-greater-than",
                 tooltip = "This is a sprite button",
-                style = "train_schedule_action_button"
+                style = "train_schedule_action_button",
+                tags = { ship = ship_tag_number, station = key }
             }
             moveup.style.size = { 20, 12 }
             local movedown = movebuttonsflow.add {
@@ -531,7 +558,8 @@ function SpaceShipGuis.add_station(parent)
                 name = "movedown",
                 sprite = "virtual-signal/signal-less-than",
                 tooltip = "This is a sprite button",
-                style = "train_schedule_action_button"
+                style = "train_schedule_action_button",
+                tags = { ship = ship_tag_number, station = key }
             }
             movedown.style.size = { 20, 12 }
             local sprite_button = stop1.add {
@@ -539,7 +567,8 @@ function SpaceShipGuis.add_station(parent)
                 name = "delete-station",
                 sprite = "virtual-signal/signal-X",
                 tooltip = "This is a sprite button",
-                style = "train_schedule_delete_button"
+                style = "train_schedule_delete_button",
+                tags = { ship = ship_tag_number, station = key }
             }
         end
     end
@@ -553,6 +582,10 @@ function SpaceShipGuis.delete_station(event)
     local ship_id = tonumber(string.match(event.element.parent.parent.parent.parent.parent.parent.name, "%d+"))
     storage.spaceships[ship_id].schedule.records[station_number] = nil
     storage.spaceships[ship_id].port_records[station_number] = nil
+    local temp_schedule = {}
+    for key, value in pairs(storage.spaceships[ship_id].schedule.records) do
+
+    end
     event.element.parent.parent.destroy()
 end
 
@@ -612,13 +645,26 @@ function SpaceShipGuis.handle_button_click(event)
         SpaceShip.cancel_dock(player) -- Call the cancelTakeoff function
     elseif button_name == "ship-dock" then
         player.print("Docking the spaceship...")
-        SpaceShip.dock_ship(player)
+        SpaceShipk_ship(player)
     elseif button_name == "add-station" then
-        local ship = storage.spaceships[tonumber(event.element.parent.parent.parent.parent.name:match("(%d+)$"))]
+        local ship = storage.spaceships[event.element.tags.ship]
         SpaceShip.add_or_change_station(ship)
-        SpaceShipGuis.add_station(event.element.parent)
+        SpaceShipGuis.add_station(event.element.parent, event.element.tags.ship)
     elseif button_name == "delete-station" then
+        local ship = storage.spaceships[event.element.tags.ship]
+        local station_index = event.element.tags.station
+        SpaceShip.delete_station(ship, station_index)
         SpaceShipGuis.delete_station(event)
+        local custom_gui = player.gui.relative["spaceship-controller-schedual-gui-" .. ship.name]
+        local left_gui = player.gui.relative["spaceship-controller-extended-gui-" .. ship.name]
+        if custom_gui and left_gui then
+            left_gui.destroy()
+            custom_gui.destroy()
+            ship.schedule_gui = nil
+            player.print("reloading ship gui.")
+        end
+        SpaceShipGuis.create_spaceship_gui(player, ship)
+        game.print("Station " .. station_index .. " removed from ship " .. ship.name .. ".")
     elseif button_name == "add-wait-condition" then
         SpaceShipGuis.add_condition_row(event)
         SpaceShipGuis.save_wait_conditions(event.element.parent)
