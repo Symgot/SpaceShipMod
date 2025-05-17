@@ -1,8 +1,78 @@
 local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("spacShip")
+local gui_maker = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
+
+-- Get the event IDs from gui mod
+local ship_gui_events
+
+-- Register events and their handlers
+local function register_events()
+    -- Get events when needed
+    if not ship_gui_events then
+        ship_gui_events = remote.call("ship-gui", "get_event_ids")
+    end
+
+    -- Register handlers for each event type
+    if ship_gui_events then
+        if ship_gui_events.on_station_selected then
+            script.on_event(ship_gui_events.on_station_selected, SpaceShipGuis.on_station_selected)
+        end
+        if ship_gui_events.on_station_move_up then
+            script.on_event(ship_gui_events.on_station_move_up, SpaceShipGuis.on_station_move_up)
+        end
+        if ship_gui_events.on_station_move_down then
+            script.on_event(ship_gui_events.on_station_move_down, SpaceShipGuis.on_station_move_down)
+        end
+        if ship_gui_events.on_station_dock_selected then
+            script.on_event(ship_gui_events.on_station_dock_selected, SpaceShipGuis.on_station_dock_selected)
+        end
+        if ship_gui_events.on_station_delete then
+            script.on_event(ship_gui_events.on_station_delete, SpaceShipGuis.on_station_delete)
+        end
+        if ship_gui_events.on_station_unload_check_changed then
+            script.on_event(ship_gui_events.on_station_unload_check_changed, SpaceShipGuis.on_station_unload_check_changed)
+        end
+        if ship_gui_events.on_station_condition_add then
+            script.on_event(ship_gui_events.on_station_condition_add, SpaceShipGuis.on_station_condition_add)
+        end
+        if ship_gui_events.on_station_goto then
+            script.on_event(ship_gui_events.on_station_goto, SpaceShipGuis.on_station_goto)
+        end
+        if ship_gui_events.on_condition_move_up then
+            script.on_event(ship_gui_events.on_condition_move_up, SpaceShipGuis.on_condition_move_up)
+        end
+        if ship_gui_events.on_condition_move_down then
+            script.on_event(ship_gui_events.on_condition_move_down, SpaceShipGuis.on_condition_move_down)
+        end
+        if ship_gui_events.on_condition_delete then
+            script.on_event(ship_gui_events.on_condition_delete, SpaceShipGuis.on_condition_delete)
+        end
+        if ship_gui_events.on_condition_constant_confirmed then
+            script.on_event(ship_gui_events.on_condition_constant_confirmed, SpaceShipGuis.on_condition_constant_confirmed)
+        end
+        if ship_gui_events.on_comparison_sign_changed then
+            script.on_event(ship_gui_events.on_comparison_sign_changed, SpaceShipGuis.on_comparison_sign_changed)
+        end
+        if ship_gui_events.on_bool_changed then
+            script.on_event(ship_gui_events.on_bool_changed, SpaceShipGuis.on_bool_changed)
+        end
+        if ship_gui_events.on_first_signal_selected then
+            script.on_event(ship_gui_events.on_first_signal_selected, SpaceShipGuis.on_first_signal_selected)
+        end
+        if ship_gui_events.on_ship_rename_confirmed then
+            script.on_event(ship_gui_events.on_ship_rename_confirmed, SpaceShipGuis.on_ship_rename_confirmed)
+        end
+        if ship_gui_events.on_ship_paused_unpaused then
+            script.on_event(ship_gui_events.on_ship_paused_unpaused, SpaceShipGuis.on_ship_paused_unpaused)
+        end
+    end
+end
+script.on_init(register_events)
+script.on_load(register_events)
+script.on_configuration_changed(register_events)
 
 local function handle_built_entity(entity, player)
     if not (entity and entity.valid) then return end
@@ -25,9 +95,9 @@ local function handle_built_entity(entity, player)
         }
         if car then
             car.orientation = 0.0 -- Align the car with the controller orientation, if needed.
-            player.print("Spaceship control hub car spawned!")
+            game.print("Spaceship control hub car spawned!")
         else
-            player.print("Eable to spawn spaceship control hub car!")
+            game.print("Eable to spawn spaceship control hub car!")
         end
     end
     if entity.name == "spaceship-docking-port" then
@@ -106,6 +176,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
             end
         end
         SpaceShipGuis.create_spaceship_gui(player, ship)
+        SpaceShipGuis.gui_maker_handler(ship,event.player_index)
     end
     if event.entity and event.entity.name == "spaceship-docking-port" then
         -- Close default GUI
@@ -116,11 +187,11 @@ script.on_event(defines.events.on_gui_opened, function(event)
         SpaceShipGuis.create_docking_port_gui(player, event.entity)
     end
 end)
-
+--[[
 script.on_event(defines.events.on_gui_closed, function(event)
     SpaceShipGuis.close_spaceship_gui(event)
 end)
-
+]] --
 script.on_event(defines.events.on_tick, function(event)
     -- Ensure storage.highlight_data is initialized
     --Astroid_spawn(event)
@@ -251,6 +322,13 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
     end
 end)
 
+script.on_event(defines.events.on_gui_text_changed, function(event)
+    if event.element.name == "dock-name-input" or event.element.name == "dock-limit-input" then
+        SpaceShipGuis.handle_text_changed_docking_port(event)
+    end
+end)
+
+
 script.on_event(defines.events.on_selected_entity_changed, function(event)
     local player = game.get_player(event.player_index)
     if not player or not player.valid then return end
@@ -295,24 +373,6 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
     end
 end)
 
-script.on_event(defines.events.on_entity_died, function(event)
-    local entity = event.entity
-    if not (entity and entity.valid) then return end
-
-    -- Check if the destroyed entity is an asteroid
-    if entity.name:find("asteroid") then
-        local surface = entity.surface
-
-        -- Check if the asteroid is on a spaceship surface
-        for _, spaceship in pairs(storage.spaceships or {}) do
-            if spaceship.own_surface and spaceship.surface == surface then
-                -- Handle asteroid death
-                --Travel.handle_asteroid_death(entity, event.force, event.cause)
-                break
-            end
-        end
-    end
-end)
 
 script.on_event(defines.events.on_space_platform_changed_state, function(event)
     local plat = event.platform
@@ -338,36 +398,6 @@ script.on_event(defines.events.on_space_platform_changed_state, function(event)
             end
         end
         ship.planet_orbiting = "none"
-    end
-end)
-
-
--- Add handlers for signal chooser and value changes
-script.on_event(defines.events.on_gui_elem_changed, function(event)
-    if event.element.name == "condition_type_chooser" then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
-    end
-end)
-
-script.on_event(defines.events.on_gui_text_changed, function(event)
-    if event.element.name:match("^condition_value_%d+$") then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
-    end
-    if event.element.name == "dock-name-input" or event.element.name == "dock-limit-input" then
-        SpaceShipGuis.handle_text_changed_docking_port(event)
-    end
-end)
-
-script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-    if event.element.name:match("^comparison_dropdown_%d+$") then
-        SpaceShipGuis.save_wait_conditions(event.element.parent.parent.parent.parent.parent)
-    end
-    SpaceShipGuis.handle_dropdown_selection(event)
-end)
-
-script.on_event(defines.events.on_gui_switch_state_changed, function(event)
-    if event.element.name == "auto-manual-switch" then
-        SpaceShipGuis.handle_button_click(event)
     end
 end)
 

@@ -65,12 +65,11 @@ end
 -- Add new function to handle docking port creation
 SpaceShip.register_docking_port = function(entity)
     if not storage.docking_ports then SpaceShip.init_docking_ports() end
-    local tile = entity.surface.get_tile(entity.position)
     storage.docking_ports[entity.unit_number] = {
         entity = entity,
         position = entity.position,
         surface = entity.surface,
-        name = "",      -- Will be set via GUI
+        name = entity.surface.platform.space_location.name..table_size(storage.docking_ports),      -- Will be set via GUI
         ship_limit = 1, -- Default limit
         ship_docked = nil
     }
@@ -78,7 +77,6 @@ end
 
 -- Create combined renders for grouped tiles
 function SpaceShip.create_combined_renders(player, tiles, scan, offset)
-    -- Ensure the player is valid
     if not player or not player.valid then
         return
     end
@@ -90,7 +88,7 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
         -- Calculate the offset to make the reference tile start at (0, 0)
         local reference_tile = ship.reference_tile
         if not reference_tile then
-            player.print("Error: Reference tile is missing from ship data.")
+            game.print("Error: Reference tile is missing from ship data.")
             return
         end
         offset = {
@@ -98,17 +96,12 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
             y = -reference_tile.position.y + offset.y
         }
     end
-
-    -- Helper function to check if a tile is already processed
     local function is_processed(x, y)
         return processed_tiles[x .. "," .. y]
     end
-
-    -- Helper function to mark tiles as processed
     local function mark_processed(x, y)
         processed_tiles[x .. "," .. y] = true
     end
-
     -- Sort tiles by their position, starting from the bottom-right
     local sorted_tiles = {}
     for _, tile_data in pairs(tiles) do
@@ -121,7 +114,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
         return a.position.y > b.position.y     -- Sort by y descending
     end)
 
-    -- Iterate over all tiles to group them into square areas
     for _, tile_data in ipairs(sorted_tiles) do
         local x, y = tile_data.position.x, tile_data.position.y
         if not is_processed(x, y) then
@@ -129,7 +121,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
             local square_size = 1
             local valid_square = true
 
-            -- Attempt to expand the square upward and to the left
             while valid_square do
                 for dx = 0, square_size do
                     for dy = 0, square_size do
@@ -137,7 +128,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
                         local check_y = y - dy
                         local tile_key = check_x .. "," .. check_y
 
-                        -- Check if the tile exists and is not already processed
                         if not tiles[tile_key] or is_processed(check_x, check_y) then
                             valid_square = false
                             break
@@ -153,7 +143,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
                 end
             end
 
-            -- Create a render for the square area
             square_size = square_size - 1 -- Adjust to the last valid size
             for dx = 0, square_size - 1 do
                 for dy = 0, square_size - 1 do
@@ -161,7 +150,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
                 end
             end
 
-            -- Snap the highlight to the grid
             local snapped_left_top = {
                 x = math.floor(x - square_size + 0.5 + offset.x),
                 y = math.floor(y - square_size + 0.5 + offset.y)
@@ -189,7 +177,6 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     for _, tile_data in pairs(tiles) do
         local x, y = tile_data.position.x, tile_data.position.y
         if not is_processed(x, y) then
-            -- Create a render for the single tile
             local left_top = { x = x - 0.5 + offset.x, y = y - 0.5 + offset.y }
             local right_bottom = { x = x + 0.5 + offset.x, y = y + 0.5 + offset.y }
 
@@ -208,8 +195,7 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
         end
     end
 
-    -- Store the combined renders for later updates
-    player.print("Total Renders: " ..
+    game.print("Total Renders: " ..
         #combined_renders ..
         " (combined from " .. table_size(tiles) .. " tiles)")
     return combined_renders
@@ -254,17 +240,15 @@ function SpaceShip.ship_takeoff(ship)
     game.print("Schedule applied and started for:" .. plat.name)
 end
 
-function SpaceShip.add_or_change_station(ship, to, from)
+function SpaceShip.add_or_change_station(ship, planet_name, index)
     ship.schedule = ship.schedule or {}
     if not ship.schedule.current then
         ship.schedule.current = 1 --default to 1 of not already set
     end
-    if ship.schedule.records and ship.schedule.records[to] then
-        ship.schedule.records[to] = from
-    elseif ship.schedule.records then
-        records =
+    if ship.schedule.records then
+        record =
         {
-            station = "nauvis",
+            station = planet_name,
             wait_conditions = {
                 {
                     type = "circuit",
@@ -285,11 +269,11 @@ function SpaceShip.add_or_change_station(ship, to, from)
             created_by_interrupt = false,
             allows_unloading = false
         }
-        table.insert(ship.schedule.records, records)
+        table.insert(ship.schedule.records, record)
     else
         ship.schedule.records = {
             {
-                station = "nauvis",
+                station = planet_name,
                 wait_conditions = {
                     {
                         type = "circuit",
@@ -315,6 +299,9 @@ function SpaceShip.add_or_change_station(ship, to, from)
     if ship.platform then
         ship.platform.schedule = ship.schedule
     end
+    for key, value in pairs(storage.docking_ports) do
+
+    end
 end
 
 function SpaceShip.delete_station(ship, station_index)
@@ -323,13 +310,11 @@ function SpaceShip.delete_station(ship, station_index)
         return
     end
 
-    -- Validate the station index
     if not ship.schedule.records[station_index] then
         game.print("Error: Station index " .. station_index .. " does not exist in the schedule.")
         return
     end
 
-    -- Remove the station from the schedule
     table.remove(ship.schedule.records, station_index)
 
     local temp_schedule = {}
@@ -338,14 +323,14 @@ function SpaceShip.delete_station(ship, station_index)
     end
 
     ship.schedule.records = temp_schedule
-    
+
     game.print("Station " .. station_index .. " removed from ship " .. ship.name .. ".")
 end
 
 -- Clone all tiles and entities from the old ship to the new ship
 function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_types)
     local src_surface = ship.surface.platform.surface
-    -- Caate the offset between the source and destination areas
+    -- Create the offset between the source and destination areas
     local reference_tile = ship.reference_tile
     if not reference_tile then
         error("Reference tile is missing from ship data.")
@@ -371,15 +356,14 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
         })
     end
     dest_surface.set_tiles(tiles_to_set)
-    -- Filter entities to exclude certain types
+    -- Filter entities to exclude certain types, ex.(player,robots)
     local entities_to_clone = {}
     for _, entity in pairs(ship.entities) do
-        if entity.valid and not excluded_types[entity.type] then
+        if entity.valid and not excluded_types[entity.type] then --filter happens here
             table.insert(entities_to_clone, entity)
         end
     end
 
-    -- Clone entities using clone_entities
     src_surface.clone_entities({
         entities = entities_to_clone,
         destination_surface = dest_surface,
@@ -387,14 +371,12 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
         snap_to_grid = true -- Ensure precise placement
     })
 
-    -- Remove entities from the original surface
     for _, entity in pairs(ship.entities) do
         if entity and entity.valid then
             entity.destroy()
         end
     end
 
-    -- Change tiles in the original area to hidden tiles
     local hidden_tiles_to_set = {}
     for _, tile in pairs(ship.floor) do
         local hidden_tile_name = src_surface.get_hidden_tile({ x = tile.position.x, y = tile.position.y })
@@ -417,16 +399,14 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     SpaceShip.start_scan_ship(ship)
 end
 
--- Function to clone the ship to a new space platform surface
 function SpaceShip.clone_ship_to_space_platform(ship)
-    -- Ensure the player is valid
     if not ship or not ship.player or not ship.player.valid then
-        ship.player.print("Error: Invalid player.")
+        ship.game.print("Error: Invalid player.")
         return
     end
 
     if not ship.scanned then
-        ship.player.print("Error: No scanned ship data found. Run a ship scan first.")
+        ship.game.print("Error: No scanned ship data found. Run a ship scan first.")
         return
     end
 
@@ -445,7 +425,6 @@ function SpaceShip.clone_ship_to_space_platform(ship)
     space_platform.apply_starter_pack()
     temp_entities = space_platform.surface.find_entities_filtered { area = { { -50, -50 }, { 50, 50 } }, name = "spaceship-control-hub" }
     temp_entities[1].destroy()
-    -- Define the destination center position
     local dest_center = { x = 0, y = 0 }
 
     -- Define the types of entities to exclude
@@ -460,7 +439,6 @@ function SpaceShip.clone_ship_to_space_platform(ship)
         OG_surface = ship.surface.name
     end
 
-    -- Clone the ship area to the new space platform surface
     if ship.surface.platform.surface then
         SpaceShip.clone_ship_area(
             ship,
@@ -476,19 +454,14 @@ function SpaceShip.clone_ship_to_space_platform(ship)
     end
 
     if ship.player_in_cockpit then
-        -- Teleport the player to the new space platform surface
         ship.player_in_cockpit.teleport(dest_center, space_platform.surface)
 
-
-
-        -- Teleport the player to the spaceship control hub car and make them enter it
         local control_hub_car
         local search_area = {
             { x = dest_center.x - 50, y = dest_center.y - 50 }, -- Define a reasonable search area around the cloned ship
             { x = dest_center.x + 50, y = dest_center.y + 50 }
         }
 
-        -- Search for the spaceship-control-hub-car in the newly cloned ship
         local entities_in_area = space_platform.surface.find_entities_filtered({
             area = search_area,
             name = "spaceship-control-hub-car"
@@ -499,7 +472,6 @@ function SpaceShip.clone_ship_to_space_platform(ship)
         end
 
         if control_hub_car and control_hub_car.valid then
-            -- Teleport the player to the control hub car and make them enter it
             ship.player_in_cockpit.teleport(control_hub_car.position, control_hub_car.surface)
             ship.player_in_cockpit.driving = true -- Make the player enter the vehicle
             ship.player_in_cockpit.print("You have entered the spaceship control hub car at the destination.")
@@ -508,7 +480,7 @@ function SpaceShip.clone_ship_to_space_platform(ship)
         end
     end
 
-    player.print("Ship successfully cloned to the new space platform: ")
+    game.print("Ship successfully cloned to the new space platform: ")
     ship.own_surface = true
     ship.planet_orbiting = OG_surface
     ship.surface = space_platform.surface
@@ -519,7 +491,7 @@ end
 function SpaceShip.start_scan_ship(ship, scan_per_tick, tick_amount)
     player = ship.player
     if storage.scan_state then
-        player.print("Scan is in progress, please wait.")
+        game.print("Scan is in progress, please wait.")
         return
     end
 
@@ -542,7 +514,6 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick, tick_amount)
     ship.reference_tile = nil
     ship.surface = nil
 
-    -- Initialize scan state
     storage.scan_state = {
         player = player,
         ship_id = ship.id,
@@ -559,8 +530,7 @@ function SpaceShip.start_scan_ship(ship, scan_per_tick, tick_amount)
         tick_counter = 0,                    -- Counter to track ticks for progress updates
         tick_amount = tick_amount or 1       --how ofter to keep scanning, higher=slower
     }
-    -- Start the scanning process
-    player.print("Ship scan started. Scanning up to " ..
+    game.print("Ship scan started. Scanning up to " ..
         storage.scan_state.scan_per_tick .. " tiles per " .. storage.scan_state.tick_amount .. " tick(s).")
 end
 
@@ -584,13 +554,13 @@ function SpaceShip.continue_scan_ship()
             ship.scanned = true
             ship.planet_orbiting = state.surface.platform.space_location
             storage.scan_highlight_expire_tick = game.tick + 60
-            player.print("Ship scan completed! Found " ..
+            game.print("Ship scan completed! Found " ..
                 table_size(state.flooring_tiles) ..
                 " tiles and " .. table_size(temp_entities) .. " entities.")
             if state.docking_port then
                 ship.docking_port = state.docking_port
             else
-                player.print("No docking port found on the ship.")
+                game.print("No docking port found on the ship.")
             end
         end
         storage.scan_state = nil
@@ -602,14 +572,12 @@ function SpaceShip.continue_scan_ship()
     while processed_tiles < state.scan_per_tick and #state.tiles_to_check > 0 do
         local current_pos = table.remove(state.tiles_to_check)
 
-        -- Use unique coordinates as a key to avoid rescanning
         local tile_key = current_pos.x .. "," .. current_pos.y
         if state.scanned_tiles[tile_key] then
             goto continue
         end
         state.scanned_tiles[tile_key] = true
 
-        -- Check if the current tile is "spaceship-flooring"
         local tile = state.surface.get_tile(current_pos.x, current_pos.y)
         if tile and tile.name == "spaceship-flooring" then
             -- Store the tile's name and position
@@ -618,12 +586,10 @@ function SpaceShip.continue_scan_ship()
                 position = { x = current_pos.x, y = current_pos.y }
             }
 
-            -- Set the reference_tile if it hasn't been set yet
             if not state.reference_tile then
                 state.reference_tile = state.flooring_tiles[tile_key]
             end
 
-            -- Find entities directly on this tile
             local area = {
                 { x = current_pos.x - 0.5, y = current_pos.y - 0.5 },
                 { x = current_pos.x + 0.5, y = current_pos.y + 0.5 }
@@ -655,7 +621,7 @@ function SpaceShip.continue_scan_ship()
                 end
             end
 
-            -- Use get_connected_tiles to find all connected tiles of the wame type in 1 hit, whaaat?!
+            -- Use get_connected_tiles to find all connected tiles of the same type in 1 hit, whaaat?!
             if #state.tiles_to_check == 0 then
                 state.tiles_to_check = state.surface.get_connected_tiles({ x = current_pos.x, y = current_pos.y },
                     { "spaceship-flooring" })
@@ -665,7 +631,6 @@ function SpaceShip.continue_scan_ship()
         ::continue::
     end
 
-    -- Increment the tick counter
     state.tick_counter = state.tick_counter + 1
 
     --[[ Print progress every 300 ticks
@@ -673,21 +638,18 @@ function SpaceShip.continue_scan_ship()
         local player = state.player
         local total_tiles = table_size(state.scanned_tiles)
         local remaining_tiles = #state.tiles_to_check
-        player.print("Scanning progress: " .. total_tiles .. " tiles scanned, " .. remaining_tiles .. " tiles remaining.")
+        game.print("Scanning progress: " .. total_tiles .. " tiles scanned, " .. remaining_tiles .. " tiles remaining.")
     end]] --
 end
 
 function SpaceShip.dock_ship(player)
     local src_surface = player.surface
     local dest_surface
-    -- Check if the player is in the cockpit or standing on ship flooring
     local player_tile = src_surface.get_tile(player.position)
     if ship.player_in_cockpit then
-        -- Player is in the cockpit, proceed
     elseif player_tile and player_tile.name ~= "spaceship-flooring" then
-        -- Player is not standing on ship flooring, proceed
     else
-        player.print("Error: You must be in the cockpit or not on ship to initiate takeoff.")
+        game.print("Error: You must be in the cockpit or not on ship to initiate takeoff.")
         return
     end
 
@@ -702,40 +664,33 @@ function SpaceShip.dock_ship(player)
     end
 
     if not dest_surface then
-        player.print("Error: No stations found, or not orbiting planet!")
+        game.print("Error: No stations found, or not orbiting planet!")
         return
     end
 
     ship.taking_off = true -- Flag to indicate takeoff process has started
 
     if not ship.scanned then
-        player.print("Error: No scanned ship data found. Run a ship scan first.")
+        game.print("Error: No scanned ship data found. Run a ship scan first.")
         return
     end
 
-    -- Save the player's body (character) in storage
     storage.player_body = player.character
 
-    -- Change the player's controller to ghost and move their camera to the target surface
     local player_pos = player.position
     local dest_center = { x = 0, y = 0 }
     player.set_controller({ type = defines.controllers.ghost }) -- Set the player to ghost contro
     player.teleport(dest_center, dest_surface.surface)
 
-    -- Highlight the ship area using combined renders
-
     storage.player_position_on_render = player.position
-    -- Store the highlight data for later updates
     storage.highlight_data = storage.highlight_data or {}
     --storage.highlight_data = SpaceShip.create_combined_renders(player, ship
     --    .floor, false, { x = 2, y = -4 })
-    player.print("rends count: " .. #storage.highlight_data)
+    game.print("rends count: " .. #storage.highlight_data)
     storage.highlight_data_player_index = player.index
 
-    -- Store the player state for later use
     storage.takeoff_player = player.index
 
-    -- Create a GUI in the top-left corner with Confirm and Cancel buttons
     local gui = player.gui.screen.add {
         type = "frame",
         name = "dock-confirmation-gui",
@@ -759,7 +714,7 @@ end
 -- Usage in finalizeTakeoff
 function SpaceShip.finalize_dock(player)
     if not ship.scanned then
-        player.print("Error: No scanned ship data found.")
+        game.print("Error: No scanned ship data found.")
         return
     end
 
@@ -767,23 +722,18 @@ function SpaceShip.finalize_dock(player)
     local dest_surface = player.surface
     local dest_center = { x = math.ceil(player.position.x), y = math.floor(player.position.y - 5) }
 
-    -- Define the types of entities to exclude
     local excluded_types = {
         ["logistic-robot"] = true,
         ["contruction-robot"] = true,
     }
-    --ship.planet_orbiting = src_surface.name
-    -- Clone the ship area to the destination surface
     SpaceShip.clone_ship_area(src_surface.platform.surface, dest_surface, dest_center, excluded_types)
 
-    -- Teleport the player to the spaceship control hub car and make them enter it
     local control_hub_car
     local search_area = {
         { x = dest_center.x - 50, y = dest_center.y - 50 }, -- Define a reasonable search area around the cloned ship
         { x = dest_center.x + 50, y = dest_center.y + 50 }
     }
 
-    -- Search for the spaceship-control-hub-car in the newly cloned ship
     local entities_in_area = dest_surface.find_entities_filtered({
         area = search_area,
         name = "spaceship-control-hub-car"
@@ -794,46 +744,39 @@ function SpaceShip.finalize_dock(player)
     end
 
     if control_hub_car and control_hub_car.valid then
-        -- Restore the player's body
         if storage.player_body and storage.player_body.valid then
-            -- Teleport the player to their body
             local body_surface = storage.player_body.surface
             local body_position = storage.player_body.position
             player.teleport(body_position, body_surface)
 
-            -- Change the player's controller back to character
             player.set_controller({ type = defines.controllers.character, character = storage.player_body })
-            storage.player_body = nil -- Clear the reference to the player's body
+            storage.player_body = nil
         else
-            player.print("Error: Unable to restore the player's body.")
+            game.print("Error: Unable to restore the player's body.")
             return
         end
 
-        -- Teleport the player to the control hub car and make them enter it
         player.teleport(control_hub_car.position, control_hub_car.surface)
-        player.driving = true -- Make the player enter the vehicle
-        player.print("You have entered the spaceship control hub car at the destination.")
+        player.driving = true
+        game.print("You have entered the spaceship control hub car at the destination.")
     else
-        player.print("Error: Unable to find the spaceship control hub car at the destination.")
+        game.print("Error: Unable to find the spaceship control hub car at the destination.")
     end
 
-    -- Close the GUI
     if player.gui.screen["dock-confirmation-gui"] then
         player.gui.screen["dock-confirmation-gui"].destroy()
     end
 
-    -- Destroy all renders in storage.highlight_data
     if storage.highlight_data then
         for _, rendering in pairs(storage.highlight_data) do
             if rendering.valid then
                 rendering.destroy()
             end
         end
-        storage.highlight_data[player.index] = nil -- Clear the player's highlight data
+        storage.highlight_data[player.index] = nil
     end
 
-    player.print("Takeoff confirmed! Ship cloned to orbit.")
-    -- Search for the spaceship-control-hub-car in the newly cloned ship
+    game.print("Takeoff confirmed! Ship cloned to orbit.")
     local entities_in_area = dest_surface.find_entities_filtered({
         area = search_area,
         name = "spaceship-control-hub"
@@ -847,27 +790,22 @@ end
 
 -- Function to cancel spaceship takeoff
 function SpaceShip.cancel_dock(player)
-    local src_surface = game.surfaces["nauvis"] -- Assuming "nauvis" is the source surface.
+    local src_surface = game.surfaces["nauvis"] -- change this at some point
     local player_index = storage.takeoff_player
     local player = game.get_player(player_index)
 
     if player then
-        -- Restore the player's body
         if storage.player_body and storage.player_body.valid then
-            -- Teleport the player to the surface where their body is located
             local body_surface = storage.player_body.surface
             local body_position = storage.player_body.position
             player.teleport(body_position, body_surface)
-
-            -- Change the player's controller back to character
             player.set_controller({ type = defines.controllers.character, character = storage.player_body })
             storage.player_body = nil -- Clear the reference to the player's body
         else
-            player.print("Error: Unable to restore the player's body.")
+            game.print("Error: Unable to restore the player's body.")
         end
     end
 
-    -- Clear highlights and GUI.
     for _, id in ipairs(storage.takeoff_highlights or {}) do
         rendering.destroy(id)
     end
@@ -876,7 +814,7 @@ function SpaceShip.cancel_dock(player)
         player.gui.screen["dock-confirmation-gui"].destroy()
     end
 
-    player.print("Takeoff canceled. Returning to the ship.")
+    game.print("Takeoff canceled. Returning to the ship.")
     ship.taking_off = false -- Reset the taking off flag
 end
 
@@ -913,12 +851,10 @@ function SpaceShip.read_circuit_signals(entity)
     return signals
 end
 
--- Example usage:
 function SpaceShip.check_circuit_condition(entity, signal_name, comparison, value)
     local signals = SpaceShip.read_circuit_signals(entity)
     local signal_value = signals[signal_name] or 0
 
-    -- Compare the signal value based on the comparison operator
     if comparison == "<" then
         return signal_value < value
     elseif comparison == "<=" then
@@ -936,16 +872,16 @@ end
 
 function SpaceShip.check_schedule_conditions(ship)
     if not ship or not ship.schedule or not ship.schedule.records then
-        return false -- Return false if the ship or schedule is invalid
+        return false
     end
 
     local current_station = ship.schedule.records[ship.schedule.current]
     if not current_station or not current_station.wait_conditions then
-        return false -- Return false if there are no conditions to check
+        return false
     end
 
-    local result = true          -- Start with `true` for `and` logic
-    local temp_and_result = true -- Temporary result for grouped `and` conditions
+    local result = true
+    local temp_and_result = true
 
     for i, condition in ipairs(current_station.wait_conditions) do
         local condition_met = SpaceShip.check_circuit_condition(
@@ -984,36 +920,25 @@ end
 
 function SpaceShip.check_automatic_behavior()
     SpaceShip.connect_adjacent_ports()
-    -- Check each ship in storage
     for id, ship in pairs(storage.spaceships or {}) do
-        -- Skip if not in automatic mode
         if not ship.automatic then goto continue end
-
         if storage.scan_state then goto continue end
 
-        -- Get current station from schedule
         local schedule = ship.schedule
         if not schedule or not schedule.records then goto continue end
-
         local current_station = schedule.records[schedule.current]
         if not current_station then goto continue end
-
         if not ship.scanned and not storage.scan_state then
             SpaceShip.start_scan_ship(ship)
         elseif not ship.scanned then
             goto continue
         end
 
-        -- Check if ship is docked at the current station
         if ship.own_surface or not ship.scanned then goto continue end
         if ship.surface.platform.space_location.name == current_station.station then
-            -- Check all wait conditions for current station
             local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
-
-            -- If all conditions are met, prepare for travel
             if all_conditions_met then
                 SpaceShip.clone_ship_to_space_platform(ship)
-                -- Set next station in schedule
                 local next_station
                 if schedule.records[schedule.current + 1] then
                     schedule.current = schedule.current + 1
@@ -1022,8 +947,6 @@ function SpaceShip.check_automatic_behavior()
                     schedule.current = 1
                     next_station = schedule.records[schedule.current]
                 end
-
-                -- Update platform schedule and start travel
                 local platform = ship.hub.surface.platform
                 if platform then
                     platform.schedule = schedule
@@ -1048,20 +971,16 @@ function SpaceShip.connect_adjacent_ports()
     for id1, port1 in pairs(storage.docking_ports) do
         for id2, port2 in pairs(storage.docking_ports) do
             if id1 ~= id2 and are_adjacent(port1, port2) then
-                -- Ensure both entities are valid
                 if port1.entity.valid and port2.entity.valid then
-                    -- Get the wire connectors for both ports
                     local red_connector1 = port1.entity.get_wire_connector(defines.wire_connector_id.circuit_red)
                     local green_connector1 = port1.entity.get_wire_connector(defines.wire_connector_id.circuit_green)
                     local red_connector2 = port2.entity.get_wire_connector(defines.wire_connector_id.circuit_red)
                     local green_connector2 = port2.entity.get_wire_connector(defines.wire_connector_id.circuit_green)
 
-                    -- Connect red wires
                     if red_connector1 and red_connector2 then
                         red_connector1.connect_to(red_connector2)
                     end
 
-                    -- Connect green wires
                     if green_connector1 and green_connector2 then
                         green_connector1.connect_to(green_connector2)
                     end
@@ -1072,7 +991,6 @@ function SpaceShip.connect_adjacent_ports()
 end
 
 function SpaceShip.on_platform_state_change(event)
-    -- Get the platform and its associated ship
     local platform = event.platform
     if not platform or not platform.valid then
         game.print("Error: Invalid platform in state change event.")
@@ -1096,15 +1014,11 @@ function SpaceShip.on_platform_state_change(event)
         return
     end
 
-    -- Check if the platform's state changed to 6
+    -- Check if the platform's state changed to 6 (waiting_at_station)
     if event.platform.state == 6 then
-        -- Store platform reference for later deletion
         local old_platform = platform
-
-        -- Pause the platform
         platform.paused = true
 
-        -- Get the target docking port from the current schedule
         local schedule = ship.schedule
         if not schedule or not schedule.records or not schedule.records[schedule.current] then
             game.print("Error: Invalid schedule for ship " .. ship.name)
@@ -1141,10 +1055,8 @@ function SpaceShip.on_platform_state_change(event)
             y = target_docking_port.position.y - ship.docking_port.position.y
         }
 
-        -- Clone the ship to the target surface
         SpaceShip.clone_ship_area(ship, target_docking_port.surface, offset, {})
 
-        -- Update the ship's surface and docking port
         ship.surface = target_docking_port.surface
         ship.own_surface = false
         ship.traveling = false
@@ -1159,12 +1071,10 @@ function SpaceShip.on_platform_state_change(event)
 end
 
 function SpaceShip.handle_cloned_storage_update(event)
-    -- Validate event data
     if not event or not event.source or not event.destination then
         return
     end
 
-    -- Update spaceships storage
     if storage.spaceships then
         for key, value in pairs(storage.spaceships) do
             if value.hub and value.hub.unit_number == event.source.unit_number then
@@ -1176,7 +1086,6 @@ function SpaceShip.handle_cloned_storage_update(event)
         end
     end
 
-    -- Update docking ports storage
     if storage.docking_ports and storage.docking_ports[event.source.unit_number] then
         local old_data = storage.docking_ports[event.source.unit_number]
         storage.docking_ports[event.source.unit_number] = nil
@@ -1188,6 +1097,149 @@ function SpaceShip.handle_cloned_storage_update(event)
             ship_limit = old_data.ship_limit or 1
         }
     end
+end
+
+function SpaceShip.add_wait_condition(ship, station_number, condition_type)
+    if not ship.schedule.records[station_number].wait_conditions then
+        ship.schedule.records[station_number].wait_conditions = {}
+    end
+    local wait_condition =
+    {
+        type = condition_type,
+        compare_type = "and",
+        condition =
+        {
+            first_signal =
+            {
+                type = "virtual",
+                name = "signal-A"
+            },
+            comparator = ">",
+            constant = 10
+        }
+    }
+    table.insert(ship.schedule.records[station_number].wait_conditions, wait_condition)
+end
+
+function SpaceShip.remove_wait_condition(ship, station_index, condition_index)
+    if not ship.schedule.records[station_index] or 
+       not ship.schedule.records[station_index].wait_conditions then
+        return
+    end
+
+    ship.schedule.records[station_index].wait_conditions[condition_index] = nil
+
+    local temp_conditions = {}
+    for _, condition in pairs(ship.schedule.records[station_index].wait_conditions) do
+        if condition then
+            table.insert(temp_conditions, condition)
+        end
+    end
+
+    ship.schedule.records[station_index].wait_conditions = temp_conditions
+end
+
+function SpaceShip.station_move_up(ship, station_index)
+    if not ship.schedule.records or 
+       not ship.schedule.records[station_index] or 
+       station_index <= 1 then
+        return
+    end
+
+    local current_station = ship.schedule.records[station_index]
+    local previous_station = ship.schedule.records[station_index - 1]
+
+    ship.schedule.records[station_index] = previous_station
+    ship.schedule.records[station_index - 1] = current_station
+
+    if ship.schedule.current == station_index then
+        ship.schedule.current = station_index - 1
+    elseif ship.schedule.current == station_index - 1 then
+        ship.schedule.current = station_index
+    end
+end
+
+function SpaceShip.station_move_down(ship, station_index)
+    if not ship.schedule.records or 
+       not ship.schedule.records[station_index] or 
+       not ship.schedule.records[station_index + 1] then
+        return
+    end
+
+    local current_station = ship.schedule.records[station_index]
+    local next_station = ship.schedule.records[station_index + 1]
+
+    ship.schedule.records[station_index] = next_station
+    ship.schedule.records[station_index + 1] = current_station
+
+    if ship.schedule.current == station_index then
+        ship.schedule.current = station_index + 1
+    elseif ship.schedule.current == station_index + 1 then
+        ship.schedule.current = station_index
+    end
+end
+
+function SpaceShip.condition_move_up(ship, station_index, condition_index)
+    if not ship.schedule.records[station_index] or 
+       not ship.schedule.records[station_index].wait_conditions or
+       not ship.schedule.records[station_index].wait_conditions[condition_index] or
+       condition_index <= 1 then
+        return
+    end
+
+    local current_condition = ship.schedule.records[station_index].wait_conditions[condition_index]
+    local previous_condition = ship.schedule.records[station_index].wait_conditions[condition_index - 1]
+
+    ship.schedule.records[station_index].wait_conditions[condition_index] = previous_condition
+    ship.schedule.records[station_index].wait_conditions[condition_index - 1] = current_condition
+end
+
+function SpaceShip.condition_move_down(ship, station_index, condition_index)
+    if not ship.schedule.records[station_index] or 
+       not ship.schedule.records[station_index].wait_conditions or
+       not ship.schedule.records[station_index].wait_conditions[condition_index] or
+       not ship.schedule.records[station_index].wait_conditions[condition_index + 1] then
+        return
+    end
+
+    local current_condition = ship.schedule.records[station_index].wait_conditions[condition_index]
+    local next_condition = ship.schedule.records[station_index].wait_conditions[condition_index + 1]
+
+    ship.schedule.records[station_index].wait_conditions[condition_index] = next_condition
+    ship.schedule.records[station_index].wait_conditions[condition_index + 1] = current_condition
+end
+
+function SpaceShip.constant_changed(ship, station_index, condition_index, value)
+    if not ship.schedule.records[station_index] or
+       not ship.schedule.records[station_index].wait_conditions or
+       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        return
+    end
+
+    ship.schedule.records[station_index].wait_conditions[condition_index].condition.constant = value
+end
+
+function SpaceShip.compair_changed(ship, station_index, condition_index, value)
+    if not ship.schedule.records[station_index] or
+       not ship.schedule.records[station_index].wait_conditions or
+       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        return
+    end
+
+    ship.schedule.records[station_index].wait_conditions[condition_index].condition.comparator = value
+end
+
+function SpaceShip.signal_changed(ship, station_index, condition_index, signal)
+    if not ship.schedule.records[station_index] or
+       not ship.schedule.records[station_index].wait_conditions or
+       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        return
+    end
+
+    ship.schedule.records[station_index].wait_conditions[condition_index].condition.first_signal = {
+        type = signal.type,
+        name = signal.name
+    }
 end
 
 return SpaceShip
