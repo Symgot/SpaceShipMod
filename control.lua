@@ -1,7 +1,7 @@
 local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("spacShip")
-local gui_maker = require("__ship-gui__.spaceship_gui.spaceship_gui")
+local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
 
@@ -33,7 +33,8 @@ local function register_events()
             script.on_event(ship_gui_events.on_station_delete, SpaceShipGuis.on_station_delete)
         end
         if ship_gui_events.on_station_unload_check_changed then
-            script.on_event(ship_gui_events.on_station_unload_check_changed, SpaceShipGuis.on_station_unload_check_changed)
+            script.on_event(ship_gui_events.on_station_unload_check_changed,
+                SpaceShipGuis.on_station_unload_check_changed)
         end
         if ship_gui_events.on_station_condition_add then
             script.on_event(ship_gui_events.on_station_condition_add, SpaceShipGuis.on_station_condition_add)
@@ -51,7 +52,8 @@ local function register_events()
             script.on_event(ship_gui_events.on_condition_delete, SpaceShipGuis.on_condition_delete)
         end
         if ship_gui_events.on_condition_constant_confirmed then
-            script.on_event(ship_gui_events.on_condition_constant_confirmed, SpaceShipGuis.on_condition_constant_confirmed)
+            script.on_event(ship_gui_events.on_condition_constant_confirmed,
+                SpaceShipGuis.on_condition_constant_confirmed)
         end
         if ship_gui_events.on_comparison_sign_changed then
             script.on_event(ship_gui_events.on_comparison_sign_changed, SpaceShipGuis.on_comparison_sign_changed)
@@ -176,7 +178,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
             end
         end
         SpaceShipGuis.create_spaceship_gui(player, ship)
-        SpaceShipGuis.gui_maker_handler(ship,event.player_index)
+        SpaceShipGuis.gui_maker_handler(ship, event.player_index)
     end
     if event.entity and event.entity.name == "spaceship-docking-port" then
         -- Close default GUI
@@ -187,11 +189,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
         SpaceShipGuis.create_docking_port_gui(player, event.entity)
     end
 end)
---[[
-script.on_event(defines.events.on_gui_closed, function(event)
-    SpaceShipGuis.close_spaceship_gui(event)
-end)
-]] --
+
 script.on_event(defines.events.on_tick, function(event)
     -- Ensure storage.highlight_data is initialized
     --Astroid_spawn(event)
@@ -262,24 +260,12 @@ script.on_event(defines.events.on_tick, function(event)
 
     if game.tick % 60 == 0 then
         for _, ship in pairs(storage.spaceships or {}) do
-            if ship.schedule_gui and ship.schedule_gui.valid then
-                local station_scroll = ship.schedule_gui["vertical-flow"]["flow"]["station-scroll-panel"]
-                if station_scroll then
-                    for _, station in pairs(station_scroll.children) do
-                        if station.name:match("^station%d+$") then
-                            local condition_gui = station["spaceship-condition-gui"]
-                            if condition_gui then
-                                local condition_flow = condition_gui["main_container"]["condition_flow"]
-                                if condition_flow then
-                                    for _, condition in pairs(condition_flow.children) do
-                                        if condition.name:match("^condition_row_%d+$") then
-                                            SpaceShipGuis.check_condition_row(condition)
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
+            local player = storage.spaceships[1].player
+            if player.gui.relative["schedule-container"] then
+                signals = SpaceShip.read_circuit_signals(ship.hub)
+                values = SpaceShip.get_progress_values(ship, signals)
+                for key, value in pairs(values) do
+                    schedule_gui.update_station_progress(key, value,player)
                 end
             end
         end

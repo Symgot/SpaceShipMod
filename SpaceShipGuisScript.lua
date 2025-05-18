@@ -152,6 +152,7 @@ function SpaceShipGuis.on_ship_paused_unpaused(event)
     if ship then
         game.print("Ship " .. ship.name .. " handling paused")
     end
+    SpaceShip.auto_manual_changed(ship)
     SpaceShipGuis.gui_maker_handler(ship, event.player_index)
 end
 
@@ -263,8 +264,8 @@ function SpaceShipGuis.handle_button_click(event)
         game.print("Docking the spaceship...")
         SpaceShip.dock_ship(player)
     elseif button_name == "close-dock-gui" then
-        if game.gui.screen["docking-port-gui"] then
-            game.gui.screen["docking-port-gui"].destroy()
+        if player.gui.screen["docking-port-gui"] then
+            player.gui.screen["docking-port-gui"].destroy()
         end
     else
         game.print("Unknown button clicked: " .. button_name)
@@ -371,7 +372,7 @@ end
 function SpaceShipGuis.gui_maker_handler(ship, player_id)
     local docks_table = {}
     for key, value in pairs(storage.docking_ports) do
-        if value.name ~= "" then
+        if value.name ~= "ship" then
             if not docks_table[value.surface.platform.space_location.name] then
                 docks_table[value.surface.platform.space_location.name] =
                 {

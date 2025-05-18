@@ -62,20 +62,24 @@ SpaceShip.init_docking_ports = function()
     storage.docking_ports = storage.docking_ports or {}
 end
 
--- Add new function to handle docking port creation
 SpaceShip.register_docking_port = function(entity)
     if not storage.docking_ports then SpaceShip.init_docking_ports() end
+    local name
+    if entity.surface.get_tile(entity.position.x, entity.position.y).name ~= "spaceship-flooring" then
+        name = entity.surface.platform.space_location.name..table_size(storage.docking_ports)
+    else
+        name = "ship"
+    end
     storage.docking_ports[entity.unit_number] = {
         entity = entity,
         position = entity.position,
         surface = entity.surface,
-        name = entity.surface.platform.space_location.name..table_size(storage.docking_ports),      -- Will be set via GUI
+        name = name,      -- Will be set via GUI
         ship_limit = 1, -- Default limit
         ship_docked = nil
     }
 end
 
--- Create combined renders for grouped tiles
 function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     if not player or not player.valid then
         return
@@ -327,7 +331,6 @@ function SpaceShip.delete_station(ship, station_index)
     game.print("Station " .. station_index .. " removed from ship " .. ship.name .. ".")
 end
 
--- Clone all tiles and entities from the old ship to the new ship
 function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_types)
     local src_surface = ship.surface.platform.surface
     -- Create the offset between the source and destination areas
@@ -851,6 +854,45 @@ function SpaceShip.read_circuit_signals(entity)
     return signals
 end
 
+function SpaceShip.get_progress_values(ship, signals)
+    if not ship or not ship.schedule or not ship.schedule.records then
+        return {}
+    end
+
+    local progress = {}
+    
+    for station_index, station in pairs(ship.schedule.records) do
+        if station.wait_conditions then
+            progress[station_index] = {}
+            
+            for condition_index, condition in pairs(station.wait_conditions) do
+                local progress_value = 0
+
+                local signal_value = signals[condition.condition.first_signal.name]
+                if signal_value then
+                    local target_value = condition.condition.constant
+
+                    -- Calculate progress value (0-1) for progress bar.
+                    if condition.condition.comparator == ">" then
+                        progress_value = signal_value / target_value
+                    elseif condition.condition.comparator == ">=" then
+                        progress_value = signal_value / target_value
+                    elseif condition.condition.comparator == "<" then
+                        progress_value = target_value / signal_value
+                    elseif condition.condition.comparator == "<=" then
+                        progress_value = target_value / signal_value
+                    elseif condition.condition.comparator == "=" then
+                        progress_value = signal_value / target_value
+                    end
+                end
+
+                progress[station_index][condition_index] = progress_value
+            end
+        end
+    end
+    return progress
+end
+
 function SpaceShip.check_circuit_condition(entity, signal_name, comparison, value)
     local signals = SpaceShip.read_circuit_signals(entity)
     local signal_value = signals[signal_name] or 0
@@ -888,7 +930,7 @@ function SpaceShip.check_schedule_conditions(ship)
             ship.hub,
             condition.condition.first_signal.name,
             condition.condition.comparator,
-            condition.condition.constant
+            tonumber(condition.condition.constant)
         )
 
         if condition.compare_type == "and" then
@@ -1240,6 +1282,10 @@ function SpaceShip.signal_changed(ship, station_index, condition_index, signal)
         type = signal.type,
         name = signal.name
     }
+end
+
+function SpaceShip.auto_manual_changed(ship)
+if ship.automatic == true then ship.automatic = false else ship.automatic = true end
 end
 
 return SpaceShip
