@@ -101,7 +101,7 @@ function SpaceShipGuis.on_condition_delete(event)
     if ship then
         game.print("Ship " .. ship.name .. " handling delete condition")
     end
-    SpaceShip.remove_wait_condition(ship,event.station_index,event.condition_index)
+    SpaceShip.remove_wait_condition(ship, event.station_index, event.condition_index)
     SpaceShipGuis.gui_maker_handler(ship, event.player_index)
 end
 
@@ -110,7 +110,7 @@ function SpaceShipGuis.on_condition_constant_confirmed(event)
     if ship then
         game.print("Ship " .. ship.name .. " handling constant changed")
     end
-    SpaceShip.constant_changed(ship,event.station_index,event.condition_index,event.amount)
+    SpaceShip.constant_changed(ship, event.station_index, event.condition_index, event.amount)
 end
 
 function SpaceShipGuis.on_comparison_sign_changed(event)
@@ -182,12 +182,67 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
         },
         tags = { ship = ship_tag_number }
     }
-    
-    -- Add a dropdown with only planet surfaces
+
+    -- Add a dropdown with researched planets (even if not yet visited)
     local planet_names = {}
-    for _, surface in pairs(game.surfaces) do
-        if not string.find(surface.name, "platform") then
-            table.insert(planet_names, surface.name)
+    local force = ship.hub.force
+
+    -- Always include Nauvis (starting planet)
+    table.insert(planet_names, "nauvis")
+
+    -- Check for researched Space Age planets
+    local planet_research_map = {
+        ["vulcanus"] = "planet-discovery-vulcanus",
+        ["fulgora"] = "planet-discovery-fulgora",
+        ["gleba"] = "planet-discovery-gleba",
+        ["aquilo"] = "planet-discovery-aquilo"
+    }
+
+    -- Add planets that have been researched
+    for planet_name, research_tech in pairs(planet_research_map) do
+        local tech = force.technologies[research_tech]
+        if tech and tech.researched then
+            table.insert(planet_names, planet_name)
+        end
+    end
+
+    -- Check for modded planets with discovery technologies
+    -- Look through all technologies for ones that follow the planet-discovery pattern
+    for tech_name, technology in pairs(force.technologies) do
+        if string.match(tech_name, "^planet%-discovery%-(.+)$") and technology.researched then
+            local planet_name = string.match(tech_name, "^planet%-discovery%-(.+)$")
+            -- Don't add duplicates from the standard planets above
+            local already_added = false
+            for _, existing_planet in pairs(planet_names) do
+                if existing_planet == planet_name then
+                    already_added = true
+                    break
+                end
+            end
+            if not already_added then
+                table.insert(planet_names, planet_name)
+            end
+        end
+    end
+
+    -- Also add any existing surfaces that are clearly planets (visited planets)
+    -- This catches any edge cases or planets that don't follow the research pattern
+    for surface_name, surface in pairs(game.surfaces) do
+        if not string.find(surface_name, "platform") and
+            not string.find(surface_name, "space%-") and
+            not string.find(surface_name, "orbit") and
+            surface_name ~= "nauvis" then -- Don't duplicate nauvis
+            -- Check if it's not already in our list
+            local already_added = false
+            for _, existing_planet in pairs(planet_names) do
+                if existing_planet == surface_name then
+                    already_added = true
+                    break
+                end
+            end
+            if not already_added then
+                table.insert(planet_names, surface_name)
+            end
         end
     end
 
@@ -198,12 +253,8 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
         selected_index = 1,
         tags = { ship = ship_tag_number }
     }
-
-    custom_gui.add { type = "button", name = "scan-ship", caption = "Scan Ship", tags = { ship = ship_tag_number } }
-    custom_gui.add { type = "button", name = "ship-platform", caption = "Travel Mode", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "ship-dock", caption = "Dock", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff", tags = { ship = ship_tag_number } }
-    custom_gui.add { type = "button", name = "close-spaceship-extended-gui", caption = "Close", tags = { ship = ship_tag_number } }
 end
 
 -- Function to close the spaceship control GUI
@@ -240,18 +291,19 @@ function SpaceShipGuis.handle_button_click(event)
     local player = game.get_player(event.player_index)
     if button_name == "scan-ship" then -- Call the scan_ship function
         game.print("Scanning the ship...")
-        local ship = storage.spaceships[tonumber(event.element.parent.name:match("(%d+)$"))]
+        local ship = storage.spaceships[event.element.tags.ship]
         SpaceShip.start_scan_ship(ship)
     elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
-        if storage.spaceships[storage.opened_entity_id].scanned then
-            game.print("Spaceship takeoff initiated!")
-            SpaceShip.ship_takeoff(player)
-        else
-            game.print("Error: You must scan the ship before taking off.")
-        end
+        local ship = storage.spaceships[event.element.tags.ship]
+        game.print("Spaceship takeoff initiated!")
+        local dropdown = event.element.parent["surface-dropdown"]
+        SpaceShip.ship_takeoff(ship, dropdown)
+        SpaceShipGuis.gui_maker_handler(ship, event.player_index)
+        SpaceShip.auto_manual_changed(ship)
     elseif button_name == "ship-platform" then --travel mode
         game.print("Entering Travel Mode")
-        SpaceShip.clone_ship_to_space_platform(player)
+        local ship = storage.spaceships[event.element.tags.ship]
+        SpaceShip.clone_ship_to_space_platform(ship)
     elseif button_name == "close-spaceship-extended-gui" then
         SpaceShipGuis.close_spaceship_gui(player)
     elseif button_name == "confirm-dock" then
@@ -262,7 +314,8 @@ function SpaceShipGuis.handle_button_click(event)
         SpaceShip.cancel_dock(player) -- Call the cancelTakeoff function
     elseif button_name == "ship-dock" then
         game.print("Docking the spaceship...")
-        SpaceShip.dock_ship(player)
+        local ship = storage.spaceships[event.element.tags.ship]
+        SpaceShip.dock_ship(ship)
     elseif button_name == "close-dock-gui" then
         if player.gui.screen["docking-port-gui"] then
             player.gui.screen["docking-port-gui"].destroy()
@@ -371,6 +424,9 @@ end
 
 function SpaceShipGuis.gui_maker_handler(ship, player_id)
     local docks_table = {}
+    if not storage.docking_ports then
+        storage.docking_ports = {}
+    end
     for key, value in pairs(storage.docking_ports) do
         if value.name ~= "ship" then
             if not docks_table[value.surface.platform.space_location.name] then
@@ -389,15 +445,36 @@ function SpaceShipGuis.gui_maker_handler(ship, player_id)
     local paused = ship.autom
     local ship_name = ship.name
     local ship_id = ship.id
+
+    -- Ensure port_records exists, initialize if nil
+    if not ship.port_records then
+        ship.port_records = {}
+    end
     local stations_docks = ship.port_records
+
     local gui_anchor = {
         gui = defines.relative_gui_type.container_gui,
         position = defines.relative_gui_position
             .right
     }
 
-    if ship.own_surface then
-        ship.surface.platform.schedule = schedule
+    -- Only set platform schedule if it's properly structured
+    if ship.own_surface and schedule and type(schedule) == "table" then
+        -- Check if schedule has the required structure
+        local valid_schedule = false
+        if schedule.records and type(schedule.records) == "table" and #schedule.records > 0 then
+            -- Check if at least one record has the required fields
+            for _, record in pairs(schedule.records) do
+                if record.station and type(record.station) == "string" and record.station ~= "" then
+                    valid_schedule = true
+                    break
+                end
+            end
+        end
+
+        if valid_schedule then
+            ship.surface.platform.schedule = schedule
+        end
     end
 
     gui_maker.make_gui(

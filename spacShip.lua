@@ -66,7 +66,7 @@ SpaceShip.register_docking_port = function(entity)
     if not storage.docking_ports then SpaceShip.init_docking_ports() end
     local name
     if entity.surface.get_tile(entity.position.x, entity.position.y).name ~= "spaceship-flooring" then
-        name = entity.surface.platform.space_location.name..table_size(storage.docking_ports)
+        name = entity.surface.platform.space_location.name .. table_size(storage.docking_ports)
     else
         name = "ship"
     end
@@ -74,7 +74,7 @@ SpaceShip.register_docking_port = function(entity)
         entity = entity,
         position = entity.position,
         surface = entity.surface,
-        name = name,      -- Will be set via GUI
+        name = name,    -- Will be set via GUI
         ship_limit = 1, -- Default limit
         ship_docked = nil
     }
@@ -205,12 +205,9 @@ function SpaceShip.create_combined_renders(player, tiles, scan, offset)
     return combined_renders
 end
 
-function SpaceShip.ship_takeoff(ship)
-    local plat      = player.surface.platform
-    local stationID = player.gui.relative["spaceship-controller-extended-gui"]
-        ["surface-dropdown"].selected_index
-    local station   = player.gui.relative["spaceship-controller-extended-gui"]
-        ["surface-dropdown"].items[stationID]
+function SpaceShip.ship_takeoff(ship, dropdown)
+    local stationID = dropdown.selected_index
+    local station   = dropdown.items[stationID]
     schedual        = {
         current = 1,
         records = {
@@ -227,7 +224,7 @@ function SpaceShip.ship_takeoff(ship)
                                 type = "virtual",
                                 name = "signal-A"
                             },
-                            comparator = ">",
+                            comparator = "<",
                             constant = 10
                         }
                     }
@@ -239,9 +236,7 @@ function SpaceShip.ship_takeoff(ship)
         }
     }
     ship.schedule   = schedual
-    plat.schedule   = schedual
-    plat.paused     = false
-    game.print("Schedule applied and started for:" .. plat.name)
+    game.print("Schedule applied and started for:" .. ship.name)
 end
 
 function SpaceShip.add_or_change_station(ship, planet_name, index)
@@ -409,7 +404,7 @@ function SpaceShip.clone_ship_to_space_platform(ship)
     end
 
     if not ship.scanned then
-        ship.game.print("Error: No scanned ship data found. Run a ship scan first.")
+        game.print("Error: No scanned ship data found. Run a ship scan first.")
         return
     end
 
@@ -645,7 +640,8 @@ function SpaceShip.continue_scan_ship()
     end]] --
 end
 
-function SpaceShip.dock_ship(player)
+function SpaceShip.dock_ship(ship)
+    local player = ship.player
     local src_surface = player.surface
     local dest_surface
     local player_tile = src_surface.get_tile(player.position)
@@ -860,11 +856,11 @@ function SpaceShip.get_progress_values(ship, signals)
     end
 
     local progress = {}
-    
+
     for station_index, station in pairs(ship.schedule.records) do
         if station.wait_conditions then
             progress[station_index] = {}
-            
+
             for condition_index, condition in pairs(station.wait_conditions) do
                 local progress_value = 0
 
@@ -977,26 +973,25 @@ function SpaceShip.check_automatic_behavior()
         end
 
         if ship.own_surface or not ship.scanned then goto continue end
-        if ship.surface.platform.space_location.name == current_station.station then
-            local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
-            if all_conditions_met then
-                SpaceShip.clone_ship_to_space_platform(ship)
-                local next_station
-                if schedule.records[schedule.current + 1] then
-                    schedule.current = schedule.current + 1
-                    next_station = schedule.records[schedule.current]
-                else
-                    schedule.current = 1
-                    next_station = schedule.records[schedule.current]
-                end
-                local platform = ship.hub.surface.platform
-                if platform then
-                    platform.schedule = schedule
-                    platform.paused = false
-                    game.print("Ship " .. ship.name .. " departing to " .. next_station.station)
-                end
+        local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
+        if all_conditions_met then
+            SpaceShip.clone_ship_to_space_platform(ship)
+            local next_station
+            if schedule.records[schedule.current + 1] then
+                schedule.current = schedule.current + 1
+                next_station = schedule.records[schedule.current]
+            else
+                schedule.current = 1
+                next_station = schedule.records[schedule.current]
+            end
+            local platform = ship.hub.surface.platform
+            if platform then
+                platform.schedule = schedule
+                platform.paused = false
+                game.print("Ship " .. ship.name .. " departing to " .. next_station.station)
             end
         end
+        --end
         ::continue::
     end
 end
@@ -1164,8 +1159,8 @@ function SpaceShip.add_wait_condition(ship, station_number, condition_type)
 end
 
 function SpaceShip.remove_wait_condition(ship, station_index, condition_index)
-    if not ship.schedule.records[station_index] or 
-       not ship.schedule.records[station_index].wait_conditions then
+    if not ship.schedule.records[station_index] or
+        not ship.schedule.records[station_index].wait_conditions then
         return
     end
 
@@ -1182,9 +1177,9 @@ function SpaceShip.remove_wait_condition(ship, station_index, condition_index)
 end
 
 function SpaceShip.station_move_up(ship, station_index)
-    if not ship.schedule.records or 
-       not ship.schedule.records[station_index] or 
-       station_index <= 1 then
+    if not ship.schedule.records or
+        not ship.schedule.records[station_index] or
+        station_index <= 1 then
         return
     end
 
@@ -1202,9 +1197,9 @@ function SpaceShip.station_move_up(ship, station_index)
 end
 
 function SpaceShip.station_move_down(ship, station_index)
-    if not ship.schedule.records or 
-       not ship.schedule.records[station_index] or 
-       not ship.schedule.records[station_index + 1] then
+    if not ship.schedule.records or
+        not ship.schedule.records[station_index] or
+        not ship.schedule.records[station_index + 1] then
         return
     end
 
@@ -1222,10 +1217,10 @@ function SpaceShip.station_move_down(ship, station_index)
 end
 
 function SpaceShip.condition_move_up(ship, station_index, condition_index)
-    if not ship.schedule.records[station_index] or 
-       not ship.schedule.records[station_index].wait_conditions or
-       not ship.schedule.records[station_index].wait_conditions[condition_index] or
-       condition_index <= 1 then
+    if not ship.schedule.records[station_index] or
+        not ship.schedule.records[station_index].wait_conditions or
+        not ship.schedule.records[station_index].wait_conditions[condition_index] or
+        condition_index <= 1 then
         return
     end
 
@@ -1237,10 +1232,10 @@ function SpaceShip.condition_move_up(ship, station_index, condition_index)
 end
 
 function SpaceShip.condition_move_down(ship, station_index, condition_index)
-    if not ship.schedule.records[station_index] or 
-       not ship.schedule.records[station_index].wait_conditions or
-       not ship.schedule.records[station_index].wait_conditions[condition_index] or
-       not ship.schedule.records[station_index].wait_conditions[condition_index + 1] then
+    if not ship.schedule.records[station_index] or
+        not ship.schedule.records[station_index].wait_conditions or
+        not ship.schedule.records[station_index].wait_conditions[condition_index] or
+        not ship.schedule.records[station_index].wait_conditions[condition_index + 1] then
         return
     end
 
@@ -1253,8 +1248,8 @@ end
 
 function SpaceShip.constant_changed(ship, station_index, condition_index, value)
     if not ship.schedule.records[station_index] or
-       not ship.schedule.records[station_index].wait_conditions or
-       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        not ship.schedule.records[station_index].wait_conditions or
+        not ship.schedule.records[station_index].wait_conditions[condition_index] then
         return
     end
 
@@ -1263,8 +1258,8 @@ end
 
 function SpaceShip.compair_changed(ship, station_index, condition_index, value)
     if not ship.schedule.records[station_index] or
-       not ship.schedule.records[station_index].wait_conditions or
-       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        not ship.schedule.records[station_index].wait_conditions or
+        not ship.schedule.records[station_index].wait_conditions[condition_index] then
         return
     end
 
@@ -1273,8 +1268,8 @@ end
 
 function SpaceShip.signal_changed(ship, station_index, condition_index, signal)
     if not ship.schedule.records[station_index] or
-       not ship.schedule.records[station_index].wait_conditions or
-       not ship.schedule.records[station_index].wait_conditions[condition_index] then
+        not ship.schedule.records[station_index].wait_conditions or
+        not ship.schedule.records[station_index].wait_conditions[condition_index] then
         return
     end
 
@@ -1285,7 +1280,14 @@ function SpaceShip.signal_changed(ship, station_index, condition_index, signal)
 end
 
 function SpaceShip.auto_manual_changed(ship)
-if ship.automatic == true then ship.automatic = false else ship.automatic = true end
+    if ship.automatic == true then ship.automatic = false else ship.automatic = true end
+    if ship.own_surface == true then 
+       if ship.automatic == true then
+        ship.surface.platform.paused = false
+       else
+        ship.surface.platform.paused = true
+       end
+    end
 end
 
 return SpaceShip

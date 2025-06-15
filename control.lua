@@ -3,7 +3,18 @@ local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("spacShip")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
+-- Initialize storage tables
 storage.highlight_data = storage.highlight_data or {} -- Stores highlight data for each player
+
+-- Initialize mod when first loaded
+script.on_init(function()
+    storage.highlight_data = storage.highlight_data or {}
+end)
+
+-- Handle configuration changes (mod updates)
+script.on_configuration_changed(function()
+    storage.highlight_data = storage.highlight_data or {}
+end)
 
 -- Get the event IDs from gui mod
 local ship_gui_events
@@ -81,6 +92,53 @@ local function handle_built_entity(entity, player)
 
     local surface = entity.surface
 
+    -- Check thruster placement restrictions
+    if entity.name == "thruster" then
+        -- Get the thruster's bounding box to check all tiles underneath
+        local bounding_box = entity.bounding_box
+        local left_top = { x = math.floor(bounding_box.left_top.x), y = math.floor(bounding_box.left_top.y) }
+        local right_bottom = {
+            x = math.ceil(bounding_box.right_bottom.x) - 1,
+            y = math.ceil(bounding_box.right_bottom.y) -
+                1
+        }
+
+        -- Check all tiles under the thruster
+        local invalid_tiles = {}
+        for x = left_top.x, right_bottom.x do
+            for y = left_top.y, right_bottom.y do
+                local tile = surface.get_tile({ x = x, y = y })
+                if tile.name ~= "spaceship-flooring" then
+                    table.insert(invalid_tiles, { x = x, y = y, name = tile.name })
+                end
+            end
+        end
+
+        -- If any tiles are not spaceship flooring, prevent placement
+        if #invalid_tiles > 0 then
+            local item_stack = { name = "thruster", count = 1 }
+
+            -- Return the thruster to player inventory or spill on ground
+            if player and player.valid then
+                local inserted = player.insert(item_stack)
+                if inserted == 0 then
+                    -- If player inventory is full, spill on ground
+                    surface.spill_item_stack(entity.position, item_stack, true, player.force, false)
+                end
+
+                -- Show error message to player
+                player.print("[color=red]Thrusters can only be placed on Spaceship Flooring![/color]")
+            else
+                -- No player (robot built), spill on ground
+                surface.spill_item_stack(entity.position, item_stack, true, entity.force, false)
+            end
+
+            -- Remove the incorrectly placed thruster
+            entity.destroy()
+            return
+        end
+    end
+
     -- Spawn the car on the spaceship controller:
     if entity.name == "spaceship-control-hub" then
         storage.spaceships = storage.spaceships or {}
@@ -139,11 +197,6 @@ script.on_event(defines.events.on_gui_click, function(event)
     SpaceShipGuis.handle_button_click(event)
 end)
 
-script.on_event(defines.events.on_built_entity, function(event)
-    local player = game.get_player(event.player_index)
-    handle_built_entity(event.entity, player)
-end)
-
 script.on_event(defines.events.on_robot_built_entity, function(event)
     local player = game.get_player(event.robot.force.players[1].index)
     handle_built_entity(event.entity, player)
@@ -180,6 +233,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
         SpaceShipGuis.create_spaceship_gui(player, ship)
         SpaceShipGuis.gui_maker_handler(ship, event.player_index)
     end
+
     if event.entity and event.entity.name == "spaceship-docking-port" then
         -- Close default GUI
         if player.opened then
@@ -265,7 +319,7 @@ script.on_event(defines.events.on_tick, function(event)
                 signals = SpaceShip.read_circuit_signals(ship.hub)
                 values = SpaceShip.get_progress_values(ship, signals)
                 for key, value in pairs(values) do
-                    schedule_gui.update_station_progress(key, value,player)
+                    schedule_gui.update_station_progress(key, value, player)
                 end
             end
         end
@@ -395,3 +449,134 @@ end, {
     { filter = "name", name = "spaceship-control-hub" },
     { filter = "name", name = "spaceship-docking-port" }
 })
+
+local function handle_ghost_entity(ghost, player)
+    if not (ghost and ghost.valid) then return end
+
+    -- Check thruster ghost placement restrictions
+    if ghost.ghost_name == "thruster" then
+        local surface = ghost.surface
+
+        -- Get the thruster's bounding box to check all tiles underneath
+        local bounding_box = ghost.bounding_box
+        local left_top = { x = math.floor(bounding_box.left_top.x), y = math.floor(bounding_box.left_top.y) }
+        local right_bottom = {
+            x = math.ceil(bounding_box.right_bottom.x) - 1,
+            y = math.ceil(bounding_box.right_bottom.y) -
+                1
+        }
+
+        -- Check all tiles under the thruster ghost
+        local invalid_tiles = {}
+        for x = left_top.x, right_bottom.x do
+            for y = left_top.y, right_bottom.y do
+                local position = { x = x, y = y }
+                local tile = surface.get_tile(position)
+                local valid_tile = false
+
+                -- Check if current tile is spaceship flooring
+                if tile.name == "spaceship-flooring" then
+                    valid_tile = true
+                else
+                    -- Check for spaceship flooring ghost tiles at this position
+                    local ghost_tiles = surface.find_entities_filtered({
+                        position = position,
+                        type = "tile-ghost",
+                        name = "tile-ghost"
+                    })
+
+                    for _, ghost_tile in pairs(ghost_tiles) do
+                        if ghost_tile.ghost_name == "spaceship-flooring" then
+                            valid_tile = true
+                            break
+                        end
+                    end
+                end
+
+                if not valid_tile then
+                    table.insert(invalid_tiles, { x = x, y = y, name = tile.name })
+                end
+            end
+        end
+
+        -- If any tiles are not spaceship flooring (actual or ghost), prevent ghost placement
+        if #invalid_tiles > 0 then
+            -- Show error message to player
+            if player and player.valid then
+                player.print("[color=red]Thrusters can only be placed on Spaceship Flooring![/color]")
+            end
+
+            -- Remove the incorrectly placed ghost
+            ghost.destroy()
+            return
+        end
+    end
+end
+
+script.on_event(defines.events.on_built_entity, function(event)
+    local player = game.get_player(event.player_index)
+    -- Handle both regular entities and ghosts
+    if event.entity.type == "entity-ghost" then
+        handle_ghost_entity(event.entity, player)
+    else
+        handle_built_entity(event.entity, player)
+    end
+end)
+
+script.on_event(defines.events.on_gui_closed, function(event)
+    local player = game.get_player(event.player_index)
+    if not player or not player.valid then return end
+
+    local closed_entity = event.entity
+    
+    -- If a spaceship control hub GUI was closed, close all related GUIs
+    if closed_entity and closed_entity.valid and closed_entity.name == "spaceship-control-hub" then
+        -- Find the ship associated with this hub
+        local ship
+        for _, value in pairs(storage.spaceships or {}) do
+            if value.hub.unit_number == closed_entity.unit_number then
+                ship = storage.spaceships[value.id]
+                break
+            end
+        end
+        
+        if ship then
+            -- Close the extended GUI
+            local extended_gui = player.gui.relative["spaceship-controller-extended-gui-" .. ship.name]
+            if extended_gui and extended_gui.valid then
+                extended_gui.destroy()
+            end
+            
+            -- Close the schedule GUI
+            local schedule_gui = player.gui.relative["spaceship-controller-schedual-gui-" .. ship.name]
+            if schedule_gui and schedule_gui.valid then
+                schedule_gui.destroy()
+                ship.schedule_gui = nil
+            end
+        end
+    end
+    
+    -- Close any hovering GUI when any relative GUI is closed
+    if player.gui.screen["hovering_gui"] then
+        player.gui.screen["hovering_gui"].destroy()
+    end
+    
+    -- Close schedule container GUI if it exists (from ship-gui mod)
+    if player.gui.relative["schedule-container"] then
+        player.gui.relative["schedule-container"].destroy()
+    end
+    
+    -- Close docking port GUI if a docking port was closed
+    if closed_entity and closed_entity.valid and closed_entity.name == "spaceship-docking-port" then
+        if player.gui.screen["docking-port-gui"] then
+            player.gui.screen["docking-port-gui"].destroy()
+        end
+    end
+    
+    -- Close dock confirmation GUI when any GUI is closed (it's a modal dialog)
+    if player.gui.screen["dock-confirmation-gui"] then
+        player.gui.screen["dock-confirmation-gui"].destroy()
+    end
+end)
+
+
