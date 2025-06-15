@@ -1281,12 +1281,513 @@ end
 
 function SpaceShip.auto_manual_changed(ship)
     if ship.automatic == true then ship.automatic = false else ship.automatic = true end
-    if ship.own_surface == true then 
+    if ship.own_surface == true then
        if ship.automatic == true then
         ship.surface.platform.paused = false
        else
         ship.surface.platform.paused = true
        end
+    end
+    game.print("Ship " .. ship.name .. " automatic mode is now " .. tostring(ship.automatic))
+end
+
+function SpaceShip.drop_to_planet(ship)
+    if not ship.planet_orbiting then
+        game.print("[color=red]Error: Ship is not orbiting any planet![/color]")
+        return
+    end
+    
+    local player = ship.player_in_cockpit
+    local target_surface_name = ship.planet_orbiting
+    local target_surface = game.surfaces[target_surface_name]
+    
+    -- If target surface doesn't exist, create it (this handles unvisited planets)
+    if not target_surface then
+        target_surface = game.create_surface(target_surface_name)
+    end
+    
+    -- Check if there's any cargo to drop
+    local cargo_items = {}
+    local has_cargo = false
+    
+    if ship.hub and ship.hub.valid then
+        local inventory = ship.hub.get_inventory(defines.inventory.chest)
+        if inventory and not inventory.is_empty() then
+            has_cargo = true
+            -- Extract all items from the hub inventory
+            for i = 1, #inventory do
+                local stack = inventory[i]
+                if stack.valid_for_read then
+                    local item_data = {
+                        name = stack.name,
+                        count = stack.count
+                    }
+                    
+                    -- Safely try to access optional properties with pcall
+                    local success, value
+                    
+                    -- Try to get quality (if it exists)
+                    success, value = pcall(function() return stack.quality end)
+                    if success and value then
+                        item_data.quality = value
+                    end
+                    
+                    -- Try to get health (for items with durability/health)
+                    success, value = pcall(function() return stack.health end)
+                    if success and value and value < 1.0 then -- Only store if damaged
+                        item_data.health = value
+                    end
+                    
+                    -- Try to get durability (for tools)
+                    success, value = pcall(function() return stack.durability end)
+                    if success and value and value < 1.0 then -- Only store if used
+                        item_data.durability = value
+                    end
+                    
+                    -- Try to get ammo (for ammunition items)
+                    success, value = pcall(function() return stack.ammo end)
+                    if success and value then
+                        item_data.ammo = value
+                    end
+                    
+                    -- Try to get custom description
+                    success, value = pcall(function() return stack.custom_description end)
+                    if success and value and value ~= "" then
+                        item_data.custom_description = value
+                    end
+                    
+                    table.insert(cargo_items, item_data)
+                end
+            end
+            -- Clear the hub inventory
+            inventory.clear()
+            game.print("[color=yellow]Cargo extracted from spaceship control hub: " .. #cargo_items .. " item stacks![/color]")
+        end
+    end
+    
+    -- Check if we have anything to drop (player or cargo)
+    if not player and not has_cargo then
+        game.print("[color=red]Error: No player in cockpit and no cargo to drop![/color]")
+        return
+    end
+    
+    -- Create a visual drop pod entity
+    local drop_pod_position
+    if player then
+        drop_pod_position = {x = player.position.x, y = player.position.y - 5}
+    else
+        -- If no player, create drop pod near the ship hub
+        drop_pod_position = {x = ship.hub.position.x, y = ship.hub.position.y - 5}
+    end
+    
+    local drop_pod = nil
+    
+    -- Validate and fix position
+    drop_pod_position.x = math.floor(drop_pod_position.x)
+    drop_pod_position.y = math.floor(drop_pod_position.y)
+    
+    -- Ensure we're on a valid surface and position
+    if not ship.hub.surface or not ship.hub.surface.valid then
+        game.print("[color=red]Error: Invalid surface for drop pod launch![/color]")
+        return
+    end
+    
+    -- Try different entity types for the drop pod visual
+    local pod_entity_types = {
+        "steel-chest",          -- Most reliable fallback first for cargo drops
+        "cargo-landing-pad",
+        "rocket-silo-rocket", 
+        "rocket-silo",
+        "space-platform-hub",
+        "assembling-machine-1"  -- Fallback if nothing else works
+    }
+    
+    local drop_force = player and player.force or ship.hub.force
+    
+    for _, entity_type in ipairs(pod_entity_types) do
+        local success, result = pcall(function()
+            return ship.hub.surface.create_entity{
+                name = entity_type,
+                position = drop_pod_position,
+                force = drop_force,
+                create_build_effect_smoke = false
+            }
+        end)
+        
+        if success and result then
+            drop_pod = result
+            
+            -- For cargo-only drops, add visual indicator
+            if not player and has_cargo then
+                pcall(function()
+                    ship.hub.surface.create_entity{
+                        name = "explosion",
+                        position = result.position,
+                        force = drop_force
+                    }
+                end)
+            end
+            break
+        end
+    end
+    
+    if not drop_pod then
+        game.print("[color=red]Error: Failed to create drop pod![/color]")
+    end
+    
+    if drop_pod or (not player and has_cargo) then
+        if player and has_cargo then
+            game.print("[color=green]Launching drop pod with player and cargo to " .. target_surface_name .. "![/color]")
+        elseif player then
+            game.print("[color=green]Launching drop pod with player to " .. target_surface_name .. "![/color]")
+        elseif has_cargo then
+            game.print("[color=green]Launching cargo drop pod to " .. target_surface_name .. "![/color]")
+        end
+        
+        -- Remove player from cockpit temporarily during transit (if player exists)
+        if player then
+            player.driving = false
+            ship.player_in_cockpit = nil
+        end
+        
+        -- Schedule the actual teleportation after a delay (simulate travel time)
+        local drop_data = {
+            player = player,
+            target_surface = target_surface,
+            drop_pod = drop_pod, -- This might be nil for cargo-only drops, which is OK
+            tick_to_execute = game.tick + 180, -- 3 second delay
+            ship = ship,
+            cargo_items = cargo_items,
+            has_cargo = has_cargo
+        }
+        
+        -- Store drop data for processing
+        storage.pending_drops = storage.pending_drops or {}
+        table.insert(storage.pending_drops, drop_data)
+        
+        -- Create launch effects using entities instead of animations (only if we have a drop pod)
+        if drop_pod then
+            local effect_force = player and player.force or ship.hub.force
+            
+            -- Try to create main explosion
+            local success = pcall(function()
+                ship.hub.surface.create_entity{
+                    name = "explosion",
+                    position = drop_pod.position,
+                    force = effect_force
+                }
+            end)
+            
+            if not success then
+                -- Fallback to big explosion if regular explosion fails
+                pcall(function()
+                    ship.hub.surface.create_entity{
+                        name = "big-explosion",
+                        position = drop_pod.position,
+                        force = effect_force
+                    }
+                end)
+            end
+            
+            -- Create additional smaller explosions for effect
+            for i = 1, 5 do
+                pcall(function()
+                    ship.hub.surface.create_entity{
+                        name = "explosion-gunshot",
+                        position = {
+                            x = drop_pod.position.x + math.random(-2, 2),
+                            y = drop_pod.position.y + math.random(-2, 2)
+                        },
+                        force = effect_force
+                    }
+                end)
+            end
+        else
+            -- For cargo-only drops without visual pod, create explosion at hub
+            if has_cargo and not player then
+                local effect_force = ship.hub.force
+                pcall(function()
+                    ship.hub.surface.create_entity{
+                        name = "explosion",
+                        position = drop_pod_position,
+                        force = effect_force
+                    }
+                end)
+            end
+        end
+        
+    else
+        game.print("[color=red]Error: Failed to create drop pod![/color]")
+    end
+end
+
+-- Function to process pending drops (called from on_tick)
+function SpaceShip.process_pending_drops()
+    if not storage.pending_drops then return end
+    
+    local current_tick = game.tick
+    local completed_drops = {}
+    
+    for i, drop_data in ipairs(storage.pending_drops) do
+        if current_tick >= drop_data.tick_to_execute then
+            -- Execute the drop
+            local player = drop_data.player
+            local target_surface = drop_data.target_surface
+            local drop_pod = drop_data.drop_pod
+            
+            if target_surface and target_surface.valid then
+                local landing_position = {x = 0, y = 0} -- Default landing position
+                
+                -- Handle player teleportation if player exists
+                if player and player.valid then
+                    -- Find a safe landing spot near 0,0 on target planet
+                    landing_position = target_surface.find_non_colliding_position(
+                        "character", 
+                        {x = 0, y = 0}, 
+                        100, 
+                        1
+                    ) or {x = 0, y = 0}
+                    
+                    -- Teleport player to target planet
+                    player.teleport(landing_position, target_surface)
+                end
+                
+                -- Handle cargo drop if there's cargo
+                if drop_data.has_cargo and drop_data.cargo_items and #drop_data.cargo_items > 0 then
+                    -- Split cargo items into chunks of 20 stacks per pod
+                    local items_per_pod = 20
+                    local cargo_chunks = {}
+                    local current_chunk = {}
+                    
+                    for i, item_data in ipairs(drop_data.cargo_items) do
+                        table.insert(current_chunk, item_data)
+                        if #current_chunk >= items_per_pod then
+                            table.insert(cargo_chunks, current_chunk)
+                            current_chunk = {}
+                        end
+                    end
+                    
+                    -- Add the last chunk if it has items
+                    if #current_chunk > 0 then
+                        table.insert(cargo_chunks, current_chunk)
+                    end
+                    
+                    local total_pods = #cargo_chunks
+                    local successful_pods = 0
+                    
+                    -- Create a drop pod for each chunk
+                    for pod_index, item_chunk in ipairs(cargo_chunks) do
+                        -- Find a unique position for this pod
+                        local pod_position = nil
+                        local attempts = 0
+                        repeat
+                            local angle = math.random() * 2 * math.pi
+                            local distance = math.random(5, 20) -- Between 5-20 blocks from (0,0)
+                            pod_position = {
+                                x = 0 + distance * math.cos(angle),
+                                y = 0 + distance * math.sin(angle)
+                            }
+                            -- Try to find a non-colliding position
+                            pod_position = target_surface.find_non_colliding_position(
+                                "steel-chest", 
+                                pod_position, 
+                                10, 
+                                1
+                            )
+                            attempts = attempts + 1
+                        until pod_position or attempts > 10
+                        
+                        -- Fallback position if no safe spot found
+                        if not pod_position then
+                            pod_position = {
+                                x = 15 + (pod_index - 1) * 3, -- Spread fallback positions
+                                y = 15 + (pod_index - 1) * 3
+                            }
+                        end
+                        
+                        -- Create cargo container (try different container types)
+                        local cargo_container = nil
+                        local container_types = {
+                            "cargo-pod-container",
+                            "steel-chest",
+                            "iron-chest",
+                            "wooden-chest"
+                        }
+                        
+                        for _, container_type in ipairs(container_types) do
+                            cargo_container = target_surface.create_entity{
+                                name = container_type,
+                                position = pod_position,
+                                force = (player and player.force) or drop_data.ship.hub.force
+                            }
+                            if cargo_container then
+                                break
+                            end
+                        end
+                        
+                        if cargo_container then
+                            -- Fill this cargo container with items from this chunk
+                            local container_inventory = cargo_container.get_inventory(defines.inventory.chest)
+                            if container_inventory then
+                                for _, item_data in pairs(item_chunk) do
+                                    -- Create basic item stack
+                                    local item_stack = {
+                                        name = item_data.name,
+                                        count = item_data.count
+                                    }
+                                    
+                                    -- Safely restore item properties if they exist in the data
+                                    if item_data.quality then 
+                                        item_stack.quality = item_data.quality 
+                                    end
+                                    if item_data.health then 
+                                        item_stack.health = item_data.health 
+                                    end
+                                    if item_data.durability then 
+                                        item_stack.durability = item_data.durability 
+                                    end
+                                    if item_data.ammo then 
+                                        item_stack.ammo = item_data.ammo 
+                                    end
+                                    if item_data.custom_description then 
+                                        item_stack.custom_description = item_data.custom_description 
+                                    end
+                                    
+                                    -- Insert item with error handling
+                                    local success, result = pcall(function()
+                                        return container_inventory.insert(item_stack)
+                                    end)
+                                    
+                                    if not success then
+                                        -- Fallback: insert basic item without extra properties
+                                        container_inventory.insert({
+                                            name = item_data.name,
+                                            count = item_data.count
+                                        })
+                                    end
+                                end
+                            end
+                            
+                            -- Create cargo landing effects for this pod
+                            pcall(function()
+                                target_surface.create_entity{
+                                    name = "explosion",
+                                    position = pod_position,
+                                    force = (player and player.force) or drop_data.ship.hub.force
+                                }
+                            end)
+                            
+                            -- Create smaller impact effects around this cargo pod
+                            for i = 1, 4 do
+                                pcall(function()
+                                    target_surface.create_entity{
+                                        name = "explosion-gunshot",
+                                        position = {
+                                            x = pod_position.x + math.random(-2, 2),
+                                            y = pod_position.y + math.random(-2, 2)
+                                        },
+                                        force = (player and player.force) or drop_data.ship.hub.force
+                                    }
+                                end)
+                            end
+                            
+                            successful_pods = successful_pods + 1
+                        else
+                            -- If container creation failed, spill items on ground
+                            for _, item_data in pairs(item_chunk) do
+                                target_surface.spill_item_stack(
+                                    pod_position,
+                                    {name = item_data.name, count = item_data.count},
+                                    true,
+                                    (player and player.force) or drop_data.ship.hub.force,
+                                    false
+                                )
+                            end
+                        end
+                    end
+                    
+                    -- Provide feedback on cargo drop results
+                    if successful_pods > 0 then
+                        if total_pods == 1 then
+                            game.print("[color=green]Cargo pod landed near (0,0) with " .. #drop_data.cargo_items .. " item stacks![/color]")
+                        else
+                            game.print("[color=green]" .. successful_pods .. "/" .. total_pods .. " cargo pods landed near (0,0) with " .. #drop_data.cargo_items .. " total item stacks![/color]")
+                        end
+                    else
+                        game.print("[color=yellow]Cargo spilled on ground near (0,0)![/color]")
+                    end
+                end
+                
+                -- Create landing explosion effect
+                local landing_force = player and player.force or drop_data.ship.hub.force
+                pcall(function()
+                    target_surface.create_entity{
+                        name = "big-explosion",
+                        position = landing_position,
+                        force = landing_force
+                    }
+                end)
+                
+                -- Create additional landing effects
+                pcall(function()
+                    target_surface.create_entity{
+                        name = "explosion",
+                        position = landing_position,
+                        force = landing_force
+                    }
+                end)
+                
+                -- Create crater/impact effect using multiple small explosions
+                for i = 1, 8 do
+                    pcall(function()
+                        local angle = (i - 1) * (2 * math.pi / 8)
+                        local radius = 3
+                        local effect_pos = {
+                            x = landing_position.x + radius * math.cos(angle),
+                            y = landing_position.y + radius * math.sin(angle)
+                        }
+                        target_surface.create_entity{
+                            name = "explosion-gunshot",
+                            position = effect_pos,
+                            force = landing_force
+                        }
+                    end)
+                end
+                
+                -- Create additional impact effects
+                for i = 1, 10 do
+                    pcall(function()
+                        target_surface.create_entity{
+                            name = "explosion-gunshot",
+                            position = {
+                                x = landing_position.x + math.random(-5, 5),
+                                y = landing_position.y + math.random(-5, 5)
+                            },
+                            force = landing_force
+                        }
+                    end)
+                end
+                
+                -- Provide appropriate success message
+                if player and player.valid then
+                    game.print("[color=green]" .. player.name .. " has landed on " .. target_surface.name .. "![/color]")
+                elseif drop_data.has_cargo then
+                    game.print("[color=green]Cargo drop completed on " .. target_surface.name .. "![/color]")
+                end
+            end
+            
+            -- Clean up drop pod - destroy all launch-side drop pods after use
+            if drop_pod and drop_pod.valid then
+                drop_pod.destroy()
+            end
+            
+            table.insert(completed_drops, i)
+        end
+    end
+    
+    -- Remove completed drops
+    for i = #completed_drops, 1, -1 do
+        table.remove(storage.pending_drops, completed_drops[i])
     end
 end
 

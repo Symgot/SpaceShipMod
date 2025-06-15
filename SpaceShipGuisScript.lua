@@ -255,6 +255,7 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
     }
     custom_gui.add { type = "button", name = "ship-dock", caption = "Dock", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "drop-to-planet", caption = "Drop to Planet", tags = { ship = ship_tag_number } }
 end
 
 -- Function to close the spaceship control GUI
@@ -316,10 +317,10 @@ function SpaceShipGuis.handle_button_click(event)
         game.print("Docking the spaceship...")
         local ship = storage.spaceships[event.element.tags.ship]
         SpaceShip.dock_ship(ship)
-    elseif button_name == "close-dock-gui" then
-        if player.gui.screen["docking-port-gui"] then
-            player.gui.screen["docking-port-gui"].destroy()
-        end
+    elseif button_name == "drop-to-planet" then
+        game.print("dropping player and/or items to planet")
+        local ship = storage.spaceships[event.element.tags.ship]
+        SpaceShip.drop_to_planet(ship)
     else
         game.print("Unknown button clicked: " .. button_name)
     end

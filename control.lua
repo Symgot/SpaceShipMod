@@ -325,6 +325,9 @@ script.on_event(defines.events.on_tick, function(event)
         end
         SpaceShip.check_automatic_behavior()
     end
+    
+    -- Process pending planet drops
+    SpaceShip.process_pending_drops()
 end)
 
 script.on_event(defines.events.on_player_driving_changed_state, function(event)
