@@ -255,7 +255,8 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
     }
     custom_gui.add { type = "button", name = "ship-dock", caption = "Dock", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff", tags = { ship = ship_tag_number } }
-    custom_gui.add { type = "button", name = "drop-to-planet", caption = "Drop to Planet", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "drop-player-to-planet", caption = "Drop player to Planet", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "drop-items-to-planet", caption = "Drop items to Planet", tags = { ship = ship_tag_number } }
 end
 
 -- Function to close the spaceship control GUI
