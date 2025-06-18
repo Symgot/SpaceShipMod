@@ -1,6 +1,6 @@
 local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
-local SpaceShip = require("spacShip")
+local SpaceShip = require("SpaceShip")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 -- Initialize storage tables
@@ -245,8 +245,6 @@ script.on_event(defines.events.on_gui_opened, function(event)
 end)
 
 script.on_event(defines.events.on_tick, function(event)
-    -- Ensure storage.highlight_data is initialized
-    --Astroid_spawn(event)
     storage.highlight_data = storage.highlight_data or {}
 
     -- Handle clearing hights after the timer expires
@@ -263,15 +261,15 @@ script.on_event(defines.events.on_tick, function(event)
         storage.scan_highlights = nil            -- Clear the highlights
     end
 
-    if storage.SpaceShip and storage.SpaceShip[storage.opened_entity_id].scanned then
+    if storage.SpaceShip and storage.SpaceShip[storage.docking_ship].scanned then
         goto continue
     end
-    if not storage.spaceships or not storage.spaceships[storage.opened_entity_id] then goto continue end
+    if not storage.spaceships or not storage.spaceships[storage.docking_ship] then goto continue end
     if game.tick % 10 == 0 and
         storage.spaceships and
-        storage.opened_entity_id and
-        storage.spaceships[storage.opened_entity_id].taking_off then -- Update every 10 ticks
-        local player = storage.spaceships[storage.opened_entity_id].player
+        storage.docking_ship and
+        storage.spaceships[storage.docking_ship].docking then -- Update every 10 ticks
+        local player = storage.spaceships[storage.docking_ship].player
         if not player or not player.valid then
             storage.highlight_data = nil
         end

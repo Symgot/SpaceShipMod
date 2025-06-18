@@ -80,7 +80,8 @@ SpaceShip.register_docking_port = function(entity)
     }
 end
 
-function SpaceShip.create_combined_renders(player, tiles, scan, offset)
+function SpaceShip.create_combined_renders(ship, tiles, scan, offset)
+    local player = ship.player
     if not player or not player.valid then
         return
     end
@@ -648,7 +649,7 @@ function SpaceShip.dock_ship(ship)
     if ship.player_in_cockpit then
     elseif player_tile and player_tile.name ~= "spaceship-flooring" then
     else
-        game.print("Error: You must be in the cockpit or not on ship to initiate takeoff.")
+        game.print("Error: You must be in the cockpit or not on ship to initiate docking.")
         return
     end
 
@@ -667,7 +668,7 @@ function SpaceShip.dock_ship(ship)
         return
     end
 
-    ship.taking_off = true -- Flag to indicate takeoff process has started
+    ship.docking = true -- Flag to indicate docking process has started
 
     if not ship.scanned then
         game.print("Error: No scanned ship data found. Run a ship scan first.")
@@ -683,49 +684,52 @@ function SpaceShip.dock_ship(ship)
 
     storage.player_position_on_render = player.position
     storage.highlight_data = storage.highlight_data or {}
-    --storage.highlight_data = SpaceShip.create_combined_renders(player, ship
-    --    .floor, false, { x = 2, y = -4 })
+    storage.highlight_data = SpaceShip.create_combined_renders(ship, ship.floor, false, { x = 2, y = -4 })
     game.print("rends count: " .. #storage.highlight_data)
     storage.highlight_data_player_index = player.index
 
-    storage.takeoff_player = player.index
+    storage.docking_player = player.index
+    storage.docking_ship = ship.id
 
     local gui = player.gui.screen.add {
         type = "frame",
         name = "dock-confirmation-gui",
-        caption = "Confirm Takeoff",
-        direction = "vertical"
+        caption = "Confirm Docking",
+        direction = "vertical",
+        tags = {ship = ship.id}
     }
     gui.location = { x = 10, y = 10 }
 
     gui.add {
         type = "button",
         name = "confirm-dock",
-        caption = "Confirm"
+        caption = "Confirm",
+        tags = {ship = ship.id}
     }
     gui.add {
         type = "button",
         name = "cancel-dock",
-        caption = "Cancel"
+        caption = "Cancel",
+        tags = {ship = ship.id}
     }
 end
 
--- Usage in finalizeTakeoff
-function SpaceShip.finalize_dock(player)
+function SpaceShip.finalize_dock(ship)
     if not ship.scanned then
         game.print("Error: No scanned ship data found.")
         return
     end
 
     local src_surface = ship.surface -- Retrieve the source surface
-    local dest_surface = player.surface
+    local player = ship.player
+    local dest_surface = ship.player.surface
     local dest_center = { x = math.ceil(player.position.x), y = math.floor(player.position.y - 5) }
 
     local excluded_types = {
         ["logistic-robot"] = true,
         ["contruction-robot"] = true,
     }
-    SpaceShip.clone_ship_area(src_surface.platform.surface, dest_surface, dest_center, excluded_types)
+    SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_types)
 
     local control_hub_car
     local search_area = {
@@ -788,7 +792,7 @@ function SpaceShip.finalize_dock(player)
 end
 
 -- Function to cancel spaceship takeoff
-function SpaceShip.cancel_dock(player)
+function SpaceShip.cancel_dock(ship)
     local src_surface = game.surfaces["nauvis"] -- change this at some point
     local player_index = storage.takeoff_player
     local player = game.get_player(player_index)

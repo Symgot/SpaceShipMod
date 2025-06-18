@@ -1,5 +1,5 @@
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
-local SpaceShip = require("spacShip")
+local SpaceShip = require("SpaceShip")
 local SpaceShipGuis = {}
 local gui_maker = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
@@ -309,11 +309,13 @@ function SpaceShipGuis.handle_button_click(event)
     elseif button_name == "close-spaceship-extended-gui" then
         SpaceShipGuis.close_spaceship_gui(player)
     elseif button_name == "confirm-dock" then
+        local ship = storage.spaceships[event.element.tags.ship]
         game.print("Docking confirmed!")
-        SpaceShip.finalize_dock(player) -- Call the finalizeTakeoff function
+        SpaceShip.finalize_dock(ship)
     elseif button_name == "cancel-dock" then
+        local ship = storage.spaceships[event.element.tags.ship]
         game.print("Docking canceled!")
-        SpaceShip.cancel_dock(player) -- Call the cancelTakeoff function
+        SpaceShip.cancel_dock(ship)
     elseif button_name == "ship-dock" then
         game.print("Docking the spaceship...")
         local ship = storage.spaceships[event.element.tags.ship]
