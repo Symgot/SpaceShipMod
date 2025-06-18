@@ -1,6 +1,7 @@
 local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("SpaceShip")
+local Stations = require("Stations")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 -- Initialize storage tables
@@ -9,11 +10,13 @@ storage.highlight_data = storage.highlight_data or {} -- Stores highlight data f
 -- Initialize mod when first loaded
 script.on_init(function()
     storage.highlight_data = storage.highlight_data or {}
+    Stations.init()
 end)
 
 -- Handle configuration changes (mod updates)
 script.on_configuration_changed(function()
     storage.highlight_data = storage.highlight_data or {}
+    Stations.init()
 end)
 
 -- Get the event IDs from gui mod
@@ -83,6 +86,7 @@ local function register_events()
         end
     end
 end
+
 script.on_init(register_events)
 script.on_load(register_events)
 script.on_configuration_changed(register_events)
@@ -289,14 +293,25 @@ script.on_event(defines.events.on_tick, function(event)
                 }
 
                 -- Update the render position to follow the player and snap to grid
-                rendering.left_top = {
-                    x = math.floor(rendering.left_top.position.x + snapped_offset.x),
-                    y = math.floor(rendering.left_top.position.y + snapped_offset.y)
-                }
-                rendering.right_bottom = {
-                    x = math.floor(rendering.right_bottom.position.x + snapped_offset.x),
-                    y = math.floor(rendering.right_bottom.position.y + snapped_offset.y)
-                }
+                -- Since left_top and right_bottom are ScriptRenderTargetTable with position data
+                local current_left_top = rendering.left_top
+                local current_right_bottom = rendering.right_bottom
+                
+                -- Extract position from the target table (position.x and position.y)
+                if current_left_top and current_right_bottom and current_left_top.position and current_right_bottom.position then
+                    rendering.left_top = {
+                        position = {
+                            x = math.floor(current_left_top.position.x + snapped_offset.x),
+                            y = math.floor(current_left_top.position.y + snapped_offset.y)
+                        }
+                    }
+                    rendering.right_bottom = {
+                        position = {
+                            x = math.floor(current_right_bottom.position.x + snapped_offset.x),
+                            y = math.floor(current_right_bottom.position.y + snapped_offset.y)
+                        }
+                    }
+                end
             end
         end
         -- Update the stored player position
@@ -416,9 +431,12 @@ end)
 
 
 script.on_event(defines.events.on_space_platform_changed_state, function(event)
+    -- Handle station management for all platform state changes
+    Stations.handle_platform_state_change(event)
+    
     local plat = event.platform
     game.print(plat.name .. " has been changed state from:" .. event.old_state .. ",to:" .. plat.state)
-    if plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.waiting_at_station then
+    if string.find(plat.name, "-ship") and event.platform.state == defines.space_platform_state.waiting_at_station then
         if event.old_state == defines.space_platform_state.on_the_path then
             hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
             local ship
@@ -430,7 +448,7 @@ script.on_event(defines.events.on_space_platform_changed_state, function(event)
             ship.planet_orbiting = plat.space_location.name
             SpaceShip.on_platform_state_change(event)
         end
-    elseif plat.name == "SpaceShipExplorer1" and event.platform.state == defines.space_platform_state.on_the_path then
+    elseif string.find(plat.name, "-ship") and event.platform.state == defines.space_platform_state.on_the_path then
         hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
         local ship
         for _, value in pairs(storage.spaceships) do
