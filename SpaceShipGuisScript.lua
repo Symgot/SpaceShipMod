@@ -291,23 +291,13 @@ end
 function SpaceShipGuis.handle_button_click(event)
     local button_name = event.element.name
     local player = game.get_player(event.player_index)
-    if button_name == "scan-ship" then -- Call the scan_ship function
-        game.print("Scanning the ship...")
-        local ship = storage.spaceships[event.element.tags.ship]
-        SpaceShip.start_scan_ship(ship)
-    elseif button_name == "ship-takeoff" then -- Call the shipTakeoff function
+    if button_name == "ship-takeoff" then -- Call the shipTakeoff function
         local ship = storage.spaceships[event.element.tags.ship]
         game.print("Spaceship takeoff initiated!")
         local dropdown = event.element.parent["surface-dropdown"]
         SpaceShip.ship_takeoff(ship, dropdown)
         SpaceShipGuis.gui_maker_handler(ship, event.player_index)
         SpaceShip.auto_manual_changed(ship)
-    elseif button_name == "ship-platform" then --travel mode
-        game.print("Entering Travel Mode")
-        local ship = storage.spaceships[event.element.tags.ship]
-        SpaceShip.clone_ship_to_space_platform(ship)
-    elseif button_name == "close-spaceship-extended-gui" then
-        SpaceShipGuis.close_spaceship_gui(player)
     elseif button_name == "confirm-dock" then
         local ship = storage.spaceships[event.element.tags.ship]
         game.print("Docking confirmed!")
@@ -320,10 +310,14 @@ function SpaceShipGuis.handle_button_click(event)
         game.print("Docking the spaceship...")
         local ship = storage.spaceships[event.element.tags.ship]
         SpaceShip.dock_ship(ship)
-    elseif button_name == "drop-to-planet" then
-        game.print("dropping player and/or items to planet")
+    elseif button_name == "drop-player-to-planet" then
+        game.print("dropping player to planet")
         local ship = storage.spaceships[event.element.tags.ship]
-        SpaceShip.drop_to_planet(ship)
+        SpaceShip.drop_player_to_planet(ship)
+    elseif button_name == "drop-items-to-planet" then
+        game.print("dropping items to planet")
+        local ship = storage.spaceships[event.element.tags.ship]
+        SpaceShip.drop_items_to_planet(ship)
     else
         game.print("Unknown button clicked: " .. button_name)
     end
