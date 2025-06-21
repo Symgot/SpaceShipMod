@@ -79,6 +79,22 @@ function Stations.handle_platform_state_change(event)
     end
 end
 
+-- Check if player has required armor to get off planet
+function Stations.has_spaceship_armor(player)
+    if not player or not player.valid then return false end
+    
+    -- Get player armor inventory
+    local armor_inventory = player.get_inventory(defines.inventory.character_armor)
+    if not armor_inventory or armor_inventory.is_empty() then return false end
+    
+    -- Check if player is wearing spaceship armor
+    local armor = armor_inventory[1]
+    if not armor or not armor.valid_for_read then return false end
+    
+    -- Check if armor is the required type (spaceship-armor)
+    return armor.name == "spaceship-armor" or armor.name == "space-armor"
+end
+
 -- Function to initialize station management (call this from control.lua)
 function Stations.init()
     -- Any initialization logic can go here
