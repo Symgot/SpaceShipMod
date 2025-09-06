@@ -16,7 +16,7 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 - **Orbit Management**: Track which planet your ship is orbiting
 - **Space Platform Integration**: Seamless integration with Factorio's space platforms
 
-### 🎮 Automation & Scheduling
+### Automation & Scheduling
 - **Automatic Mode**: Ships can follow schedules autonomously
 - **Circuit Conditions**: Use circuit network signals for complex automation
 - **Station Management**: Automatic creation and management of planet stations
