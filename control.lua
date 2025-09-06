@@ -609,8 +609,6 @@ script.on_event(defines.events.on_entity_cloned, function(event)
     SpaceShip.handle_cloned_storage_update(event)
 end)
 
-
-
 script.on_event(defines.events.on_gui_closed, function(event)
     local player = game.get_player(event.player_index)
     if not player or not player.valid then return end

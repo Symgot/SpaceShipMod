@@ -339,7 +339,37 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
         y = math.ceil(dest_center.y - reference_tile.position.y)
     }
 
-    dest_surface.request_to_generate_chunks(dest_center, 10)
+    -- Calculate the bounding box of the ship to ensure proper chunk generation
+    local min_x, max_x = math.huge, -math.huge
+    local min_y, max_y = math.huge, -math.huge
+    
+    -- Find the bounds of all ship tiles
+    for _, tile in pairs(ship.floor) do
+        local dest_x = tile.position.x + offset.x
+        local dest_y = tile.position.y + offset.y
+        min_x = math.min(min_x, dest_x)
+        max_x = math.max(max_x, dest_x)
+        min_y = math.min(min_y, dest_y)
+        max_y = math.max(max_y, dest_y)
+    end
+    
+    -- Add padding around the ship bounds
+    local padding = 32 -- 32 tiles padding (1 chunk)
+    min_x = min_x - padding
+    max_x = max_x + padding
+    min_y = min_y - padding
+    max_y = max_y + padding
+    
+    -- Calculate chunk radius needed to cover the entire ship area
+    local ship_width = max_x - min_x
+    local ship_height = max_y - min_y
+    local max_dimension = math.max(ship_width, ship_height)
+    local chunk_radius = math.ceil(max_dimension / 32) + 2 -- +2 for extra safety
+    
+    game.print("Generating chunks for ship area: " .. ship_width .. "x" .. ship_height .. " (radius: " .. chunk_radius .. ")")
+    
+    -- Request chunk generation for the entire ship area
+    dest_surface.request_to_generate_chunks(dest_center, chunk_radius)
     dest_surface.force_generate_chunk_requests()
 
     -- Clone tiles
@@ -404,6 +434,18 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     else
         game.print("Error: No valid hidden tiles to set.")
     end
+    
+    -- Force chart refresh around the cloned area to ensure proper rendering
+    if ship.player and ship.player.valid then
+        -- Chart the area around the cloned ship for the player's force
+        local chart_area = {
+            left_top = {x = min_x, y = min_y},
+            right_bottom = {x = max_x, y = max_y}
+        }
+        ship.player.force.chart(dest_surface, chart_area)
+        game.print("Map charted after ship cloning.")
+    end
+    
     SpaceShip.start_scan_ship(ship)
 end
 
@@ -644,7 +686,7 @@ function SpaceShip.continue_scan_ship()
 
     state.tick_counter = state.tick_counter + 1
 
-    if state.tick_counter % 10 == 0 then
+    if state.tick_counter % 20 == 0 then
         local player = state.player
         local total_tiles = table_size(state.scanned_tiles)
         local remaining_tiles = #state.tiles_to_check
@@ -703,7 +745,7 @@ function SpaceShip.dock_ship(ship)
 
     storage.player_position_on_render = { x = math.floor(player.position.x), y = math.floor(player.position.y) }
     storage.highlight_data = storage.highlight_data or {}
-    storage.highlight_data = SpaceShip.create_combined_renders(ship, ship.floor, false, { x = 0, y = -5 })
+    storage.highlight_data = SpaceShip.create_combined_renders(ship, ship.floor, false, { x = 0, y = -50 })
     game.print("rends count: " .. #storage.highlight_data)
     storage.highlight_data_player_index = player.index
 
@@ -1001,7 +1043,7 @@ function SpaceShip.check_automatic_behavior()
         local current_station = schedule.records[schedule.current]
         if not current_station then goto continue end
         if not ship.scanned and not storage.scan_state then
-            SpaceShip.start_scan_ship(ship,10,1)
+            SpaceShip.start_scan_ship(ship,60,1)
         elseif not ship.scanned then
             goto continue
         end
