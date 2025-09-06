@@ -745,7 +745,7 @@ function SpaceShip.dock_ship(ship)
 
     storage.player_position_on_render = { x = math.floor(player.position.x), y = math.floor(player.position.y) }
     storage.highlight_data = storage.highlight_data or {}
-    storage.highlight_data = SpaceShip.create_combined_renders(ship, ship.floor, false, { x = 0, y = -50 })
+    storage.highlight_data = SpaceShip.create_combined_renders(ship, ship.floor, false, { x = 0, y = -5 })
     game.print("rends count: " .. #storage.highlight_data)
     storage.highlight_data_player_index = player.index
 

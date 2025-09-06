@@ -1,0 +1,194 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 2025-09-06
+  Bugfixes:
+    - Fixed ship placement on out of bounds tiles for huge ships
+    - Fixed chunk generation for large ship cloning to prevent map edge cutoffs
+    - Corrected Factorio API usage for map charting after ship operations
+---------------------------------------------------------------------------------------------------
+Version: 0.1.9
+Date: 2025-06-21
+  Changes:
+    - Code organization and cleanup
+---------------------------------------------------------------------------------------------------
+Version: 0.1.8
+Date: 2025-06-19
+  Features:
+    - Added spaceship armor requirement for space travel and drop operations
+    - Implemented spaceship scanning state management for building/mining detection
+  Changes:
+    - Adjusted car position for better player control
+    - Redesigned dropping logic for improved reliability
+  Bugfixes:
+    - Fixed camera issues during ship operations
+    - Removed unnecessary button handling code
+---------------------------------------------------------------------------------------------------
+Version: 0.1.7
+Date: 2025-06-18
+  Features:
+    - Added station control logic with ship naming conventions
+    - Implemented planet orbiting detection based on platform state changes
+  Changes:
+    - Ships now use "-ship" prefix for better identification
+    - Improved rendering positions for visual consistency
+  Bugfixes:
+    - Removed .vscode/settings.json from version control
+---------------------------------------------------------------------------------------------------
+Version: 0.1.6
+Date: 2025-06-17
+  Bugfixes:
+    - General stability improvements and bug fixes
+---------------------------------------------------------------------------------------------------
+Version: 0.1.5
+Date: 2025-06-15
+  Features:
+    - Added manual drive to planet functionality
+    - Implemented drop pod system for new planet destinations
+---------------------------------------------------------------------------------------------------
+Version: 0.1.4
+Date: 2025-05-18
+  Features:
+    - Enhanced GUI system integration
+---------------------------------------------------------------------------------------------------
+Version: 0.1.3
+Date: 2025-05-17
+  Features:
+    - Added comprehensive GUI integration with ship-gui mod
+    - Implemented station movement controls (up/down)
+    - Added condition movement controls for scheduling
+  Changes:
+    - Major code cleanup and optimization
+    - Removed redundant GUI scripts (now handled by ship-gui mod)
+  Bugfixes:
+    - Fixed various GUI-related issues
+---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: 2025-05-12
+  Features:
+    - Added multiple ship handling logic per docking port
+    - Enhanced GUI system with tag-based updates
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2025-05-10
+  Features:
+    - Implemented circuit network logic controls
+    - Added automated ship behavior system
+---------------------------------------------------------------------------------------------------
+Version: 0.1.0
+Date: 2024-11-15
+  Features:
+    - Initial spaceship mod framework implementation
+    - Basic ship structure with floors, walls, and entity management
+    - Simple ship takeoff and docking mechanics
+    - Core data prototypes for spaceship components
+    - Basic event handling for entity build/mining operations
+  Changes:
+    - Replaced all power-armor-mk2 references globally with spaceship-armor
+    - Added custom spaceship flooring tile based on space platform foundation
+    - Created spaceship control hub container entity with inventory management
+---------------------------------------------------------------------------------------------------
+Version: 0.0.9
+Date: 2024-11-01
+  Features:
+    - Added automatic ship behavior system with schedule checking
+    - Implemented circuit condition evaluation for ship automation
+    - Created docking port registration and management
+    - Added ship-to-ship and ship-to-platform connection logic
+  Bugfixes:
+    - Fixed ship scanning to properly detect connected flooring tiles
+    - Resolved entity storage and reference management issues
+---------------------------------------------------------------------------------------------------
+Version: 0.0.8
+Date: 2024-10-20
+  Features:
+    - Added drop cost system requiring rocket fuel, processing units, and low density structures
+    - Implemented cargo blacklisting to prevent dropping cost items as cargo
+    - Created pending drop processing system with delayed execution
+    - Added explosion effects for drop pod launches
+  Changes:
+    - Split drop logic into separate player and item drop functions
+    - Improved drop pod entity creation with fallback options
+---------------------------------------------------------------------------------------------------
+Version: 0.0.7
+Date: 2024-10-05
+  Features:
+    - Added comprehensive GUI system integration with ship-gui mod
+    - Implemented station scheduling with wait conditions
+    - Created circuit network signal reading and progress tracking
+    - Added docking port GUI for configuration and management
+  Bugfixes:
+    - Fixed GUI event handling and button click processing
+    - Resolved schedule management and station manipulation issues
+---------------------------------------------------------------------------------------------------
+Version: 0.0.6
+Date: 2024-09-25
+  Features:
+    - Implemented ship cloning between surfaces with entity preservation
+    - Added reference tile system for consistent ship positioning
+    - Created ship surface management and platform integration
+    - Added entity exclusion system for selective cloning
+  Changes:
+    - Improved ship scanning with incremental tile processing
+    - Enhanced entity management with proper cleanup procedures
+---------------------------------------------------------------------------------------------------
+Version: 0.0.5
+Date: 2024-09-10
+  Features:
+    - Added space platform state change handling
+    - Implemented automatic docking when ships reach stations
+    - Created ship schedule execution and progression system
+    - Added platform creation and management for ship travel
+  Bugfixes:
+    - Fixed platform state tracking and ship assignment
+    - Resolved automatic behavior conflicts during scanning
+---------------------------------------------------------------------------------------------------
+Version: 0.0.4
+Date: 2024-08-28
+  Features:
+    - Created ship rendering system for docking preview
+    - Added highlight management with expiration timers
+    - Implemented dock confirmation GUI with preview functionality
+    - Added player controller management for ghost mode during docking
+  Changes:
+    - Enhanced ship floor tile optimization with combined rectangle rendering
+    - Improved tick-based processing for large ship operations
+---------------------------------------------------------------------------------------------------
+Version: 0.0.3
+Date: 2024-08-15
+  Features:
+    - Added station management system with Stations.lua module
+    - Implemented unique station naming per planet per force
+    - Created platform state monitoring and station assignment
+    - Added docking port limit configuration and ship tracking
+  Bugfixes:
+    - Fixed duplicate station creation on same planets
+    - Resolved station naming conflicts and indexing issues
+---------------------------------------------------------------------------------------------------
+Version: 0.0.2
+Date: 2024-08-01
+  Features:
+    - Implemented core ship scanning functionality with flood-fill algorithm
+    - Added entity detection and storage on spaceship flooring
+    - Created ship data structure with proper initialization
+    - Added docking port detection during ship scanning
+  Changes:
+    - Enhanced ship constructor with complete parameter initialization
+    - Improved scanning performance with configurable tiles per tick
+---------------------------------------------------------------------------------------------------
+Version: 0.0.1
+Date: 2024-07-20
+  Features:
+    - Initial mod structure with basic spaceship class
+    - Core data prototypes for spaceship entities and items
+    - Basic event registration and handler framework
+    - Space Age dependency integration
+  Changes:
+    - Created mod information and dependency configuration
+    - Added initial notes and development structure
+---------------------------------------------------------------------------------------------------
+Version: 0.0.0
+Date: 2024-07-15
+  Features:
+    - Initial repository creation
+    - Basic mod folder structure
+    - Placeholder files and configuration
