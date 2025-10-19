@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2025-10-19
+  Changes:
+    - Updated info.json to properly reflect Factorio 2.0 requirements
+    - Improved mod description to match comprehensive feature set
+    - Updated dependencies to require Factorio 2.0 base version
+  Bugfixes:
+    - Added missing required fields to container entity (max_health, corpse, dying_explosion, icon_size)
+    - Fixed car entity definition with required animation and icon properties
+    - Completed localization entries for all mod items, entities, and tiles
+  Documentation:
+    - Enhanced locale file with descriptions for all items and entities
+    - Improved entity descriptions for better player understanding
+---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2025-09-06
   Bugfixes:

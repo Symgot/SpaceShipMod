@@ -1,13 +1,13 @@
 {
   "name": "SpaceShipMod",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "factorio_version": "2.0",
   "title": "Spaceship Mod",
-  "author": "Your Name",
-  "description": "Prevents engines on space platforms and creates a new multiblock spaceship from a space platform hub controller.",
+  "author": "Symgot",
+  "description": "A comprehensive spaceship construction and automation mod for Factorio's Space Age expansion. Build custom spaceships with multiblock structures, automate space travel, and manage complex logistics between planets and space stations.",
   "dependencies": [
-    "base >= 1.1.0",
-    "space-age",
-    "ship-gui"
+    "base >= 2.0.0",
+    "space-age >= 2.0.0",
+    "ship-gui >= 1.0.0"
   ]
 }
