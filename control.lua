@@ -107,12 +107,26 @@ script.on_event(defines.events.on_built_entity, function(event)
 end)
 
 script.on_event(defines.events.on_robot_built_entity, function(event)
-    local player = game.get_player(event.robot.force.players[1].index)
+    -- Get the force from the robot and find a valid player
+    local player = nil
+    if event.robot and event.robot.valid then
+        local force = event.robot.force
+        if force and force.players and #force.players > 0 then
+            player = force.players[1]
+        end
+    end
     SpaceShip.handle_built_entity(event.entity, player)
 end)
 
 script.on_event(defines.events.on_space_platform_built_entity, function(event)
-    local player = game.get_player(event.platform.force.players[1].index)
+    -- Get the force from the platform and find a valid player
+    local player = nil
+    if event.platform and event.platform.valid then
+        local force = event.platform.force
+        if force and force.players and #force.players > 0 then
+            player = force.players[1]
+        end
+    end
     SpaceShip.handle_built_entity(event.entity, player)
 end)
 
@@ -130,20 +144,25 @@ end)
 
 script.on_event(defines.events.on_gui_opened, function(event)
     local player = game.get_player(event.player_index)
+    if not player or not player.valid then return end
+    
     local opened_entity = event.entity
-    local ship
+    local ship = nil
 
     if opened_entity and opened_entity.valid and opened_entity.name == "spaceship-control-hub" then
-        for _, value in pairs(storage.spaceships) do
-            if value.hub.unit_number == opened_entity.unit_number then
+        for _, value in pairs(storage.spaceships or {}) do
+            if value.hub and value.hub.valid and value.hub.unit_number == opened_entity.unit_number then
                 ship = storage.spaceships[value.id]
+                break
             end
         end
-        SpaceShipGuis.create_spaceship_gui(player, ship)
-        SpaceShipGuis.gui_maker_handler(ship, event.player_index)
+        if ship then
+            SpaceShipGuis.create_spaceship_gui(player, ship)
+            SpaceShipGuis.gui_maker_handler(ship, event.player_index)
+        end
     end
 
-    if event.entity and event.entity.name == "spaceship-docking-port" then
+    if event.entity and event.entity.valid and event.entity.name == "spaceship-docking-port" then
         -- Close default GUI
         if player.opened then
             player.opened = nil
@@ -232,8 +251,8 @@ script.on_event(defines.events.on_tick, function(event)
 
     if game.tick % 60 == 0 then
         for _, ship in pairs(storage.spaceships or {}) do
-            local player = storage.spaceships[1].player
-            if player.gui.relative["schedule-container"] then
+            local player = ship.player
+            if player and player.valid and player.gui.relative["schedule-container"] then
                 signals = SpaceShip.read_circuit_signals(ship.hub)
                 values = SpaceShip.get_progress_values(ship, signals)
                 for key, value in pairs(values) do
@@ -263,19 +282,21 @@ script.on_event(defines.events.on_player_driving_changed_state, function(event)
             { x = vehicle.position.x - 50, y = vehicle.position.y - 50 }, -- Define a reasonable search area around the cloned ship
             { x = vehicle.position.x + 50, y = vehicle.position.y + 50 }
         }
-        hub = event.entity.surface.find_entities_filtered { area = search_area, name = "spaceship-control-hub" }
+        local hub = event.entity.surface.find_entities_filtered { area = search_area, name = "spaceship-control-hub" }
         if not hub or #hub == 0 then return end
 
-        local ship
-        for _, value in pairs(storage.spaceships) do
-            if value.hub.unit_number == hub[1].unit_number then
+        local ship = nil
+        for _, value in pairs(storage.spaceships or {}) do
+            if value.hub and value.hub.valid and value.hub.unit_number == hub[1].unit_number then
                 ship = storage.spaceships[value.id]
+                break
             end
         end
 
+        if not ship then return end
+
         -- Player entered/exited the cockpit
         if player.vehicle then
-
             ship.player_in_cockpit = player
             -- Player entered the cockpit
             --SpaceShipGuis.create_spaceship_gui(player)
@@ -307,14 +328,15 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
     -- Check if the player is hovering over the spaceship-control-hub
     if selected_entity and selected_entity.valid and selected_entity.name == "spaceship-control-hub" then
         storage.spaceships = storage.spaceships or {}
-        local ship
+        local ship = nil
         for _, value in pairs(storage.spaceships) do
-            if value.hub.unit_number == selected_entity.unit_number then
+            if value.hub and value.hub.valid and value.hub.unit_number == selected_entity.unit_number then
                 ship = storage.spaceships[value.id]
+                break
             end
         end
-        -- Create a GUI if it doesn't already exist
-        if not player.gui.screen["hovering_gui"] then
+        -- Create a GUI if it doesn't already exist and ship was found
+        if ship and not player.gui.screen["hovering_gui"] then
             local hovering_gui = player.gui.screen.add
                 { type = "frame", name = "hovering_gui", caption = "Spaceship Info", direction = "vertical" }
             for key, value in pairs(ship) do
@@ -323,12 +345,8 @@ script.on_event(defines.events.on_selected_entity_changed, function(event)
                 elseif type(value) ~= "userdata" and type(value) ~= "boolean" then
                     hovering_gui.add { type = "label", name = key .. tostring(value), caption = key .. ":" .. tostring(value) }
                 elseif type(value) == "boolean" then
-                    if value then
-                        value = "true"
-                    else
-                        value = "false"
-                    end
-                    hovering_gui.add { type = "label", name = key .. tostring(value), caption = key .. ":" .. tostring(value) }
+                    local bool_str = value and "true" or "false"
+                    hovering_gui.add { type = "label", name = key .. bool_str, caption = key .. ":" .. bool_str }
                 elseif key == "surface" then
                     hovering_gui.add { type = "label", name = key .. tostring(value), caption = key .. ":" .. tostring(value.name) }
                 end
@@ -348,28 +366,40 @@ script.on_event(defines.events.on_space_platform_changed_state, function(event)
     Stations.handle_platform_state_change(event)
 
     local plat = event.platform
+    if not plat or not plat.valid then return end
+    
     game.print(plat.name .. " has been changed state from:" .. event.old_state .. ",to:" .. plat.state)
     if string.find(plat.name, "-ship") and event.platform.state == defines.space_platform_state.waiting_at_station then
         if event.old_state == defines.space_platform_state.on_the_path then
-            hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
-            local ship
-            for _, value in pairs(storage.spaceships) do
-                if value.hub.unit_number == hub[1].unit_number then
-                    ship = storage.spaceships[value.id]
+            local hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
+            if hub and #hub > 0 then
+                local ship = nil
+                for _, value in pairs(storage.spaceships or {}) do
+                    if value.hub and value.hub.valid and value.hub.unit_number == hub[1].unit_number then
+                        ship = storage.spaceships[value.id]
+                        break
+                    end
+                end
+                if ship then
+                    ship.planet_orbiting = plat.space_location.name
+                    SpaceShip.on_platform_state_change(event)
                 end
             end
-            ship.planet_orbiting = plat.space_location.name
-            SpaceShip.on_platform_state_change(event)
         end
     elseif string.find(plat.name, "-ship") and event.platform.state == defines.space_platform_state.on_the_path then
-        hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
-        local ship
-        for _, value in pairs(storage.spaceships) do
-            if value.hub.unit_number == hub[1].unit_number then
-                ship = storage.spaceships[value.id]
+        local hub = plat.surface.find_entities_filtered { name = "spaceship-control-hub" }
+        if hub and #hub > 0 then
+            local ship = nil
+            for _, value in pairs(storage.spaceships or {}) do
+                if value.hub and value.hub.valid and value.hub.unit_number == hub[1].unit_number then
+                    ship = storage.spaceships[value.id]
+                    break
+                end
+            end
+            if ship then
+                ship.planet_orbiting = "none"
             end
         end
-        ship.planet_orbiting = "none"
     end
 end)
 
@@ -389,9 +419,9 @@ script.on_event(defines.events.on_gui_closed, function(event)
     -- If a spaceship control hub GUI was closed, close all related GUIs
     if closed_entity and closed_entity.valid and closed_entity.name == "spaceship-control-hub" then
         -- Find the ship associated with this hub
-        local ship
+        local ship = nil
         for _, value in pairs(storage.spaceships or {}) do
-            if value.hub.unit_number == closed_entity.unit_number then
+            if value.hub and value.hub.valid and value.hub.unit_number == closed_entity.unit_number then
                 ship = storage.spaceships[value.id]
                 break
             end

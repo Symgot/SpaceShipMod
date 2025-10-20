@@ -36,7 +36,7 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 
 ## Requirements
 
-- **Factorio**: Version 1.1.0 or higher
+- **Factorio**: Version 2.0.0 or higher
 - **Space Age DLC**: Required for space platform functionality
 - **Ship GUI Mod**: External dependency for advanced GUI features
 

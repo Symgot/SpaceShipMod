@@ -1,4 +1,32 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2025-10-19
+  Changes:
+    - Updated info.json to properly reflect Factorio 2.0 requirements
+    - Improved mod description to match comprehensive feature set
+    - Updated dependencies to require Factorio 2.0 base version
+  Bugfixes:
+    - Added missing required fields to container entity (max_health, corpse, dying_explosion, icon_size)
+    - Fixed car entity definition with required animation and icon properties
+    - Fixed robot_built_entity handler to safely check for valid players
+    - Fixed space_platform_built_entity handler with proper null checks
+    - Fixed on_tick handler bug where wrong player was referenced (storage.spaceships[1].player -> ship.player)
+    - Added nil checks before accessing ship objects in all event handlers
+    - Improved on_player_driving_changed_state with proper validation
+    - Enhanced on_gui_opened with safety checks
+    - Fixed on_selected_entity_changed to prevent nil access
+    - Improved on_space_platform_changed_state with comprehensive validation
+    - Fixed on_gui_closed handler with proper nil checks
+    - Added break statements to optimize ship lookup loops
+    - Improved boolean value handling in hovering GUI
+    - Completed localization entries for all mod items, entities, and tiles
+  Documentation:
+    - Enhanced locale file with descriptions for all items and entities
+    - Improved entity descriptions for better player understanding
+  Performance:
+    - Optimized ship lookup loops by adding break statements when ship is found
+    - Added early return checks to prevent unnecessary processing
+---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2025-09-06
   Bugfixes:

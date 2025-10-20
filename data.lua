@@ -175,10 +175,14 @@ data:extend({
         placeable_by = data.raw["item"]["spaceship-control-hub"],
         flags = { "placeable-neutral", "player-creation", "not-rotatable" },
         icon = data.raw["space-platform-starter-pack"]["space-platform-starter-pack"].icon,
+        icon_size = 64,
         circuit_connector = data.raw["container"]["iron-chest"].circuit_connector,
         circuit_wire_max_distance = data.raw["container"]["iron-chest"].circuit_wire_max_distance,
         draw_circuit_wires = true,
         inventory_size = 50,
+        max_health = 500,
+        corpse = "medium-remnants",
+        dying_explosion = "medium-explosion",
         create_ghost_on_death = true,
         surface_conditions = nil,
         collision_box = { { -3.8, -3.8 }, { 3.8, 3.8 } },
@@ -202,6 +206,9 @@ data:extend({
     {
         type = "car",
         name = "spaceship-control-hub-car",
+        icon = "__base__/graphics/icons/car.png",
+        icon_size = 64,
+        flags = { "hidden" },
         weight = 1,
         braking_force = 1,
         friction_force = 100,
@@ -211,8 +218,23 @@ data:extend({
         rotation_speed = 0,
         inventory_size = 1,
         energy_source = { type = "void" },
+        burner = nil,
+        animation = {
+            layers = {
+                {
+                    filename = "__base__/graphics/entity/car/car-1.png",
+                    priority = "low",
+                    width = 1,
+                    height = 1,
+                    frame_count = 1,
+                    direction_count = 1,
+                    scale = 0.01
+                }
+            }
+        },
         allow_remote_driving = false,
         collision_box = { { -0.4, -0.05 }, { 0.4, 0.05 } },
+        selection_box = { { -0.4, -0.05 }, { 0.4, 0.05 } },
     },
     {
         type = "space-platform-starter-pack",
