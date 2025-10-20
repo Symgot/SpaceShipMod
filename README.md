@@ -62,6 +62,29 @@ SpaceShipMod (requires Space Age, CircuitRequestController, TransferRequestSyste
 
 ## Installation
 
+### For End Users
+
+Download and install from the Factorio Mod Portal:
+1. Install `CircuitRequestController` 
+2. Install `TransferRequestSystem`
+3. Install `SpaceShipMod`
+4. Install `ship-gui` (dependency of SpaceShipMod)
+
+### For Developers
+
+This repository contains the source code for all three mods. To develop or test:
+
+1. Clone this repository
+2. Symlink or copy each mod folder to your Factorio mods directory:
+   - `CircuitRequestController/` → `~/.factorio/mods/CircuitRequestController/`
+   - `TransferRequestSystem/` → `~/.factorio/mods/TransferRequestSystem/`
+   - `SpaceShipMod/` → `~/.factorio/mods/SpaceShipMod/`
+3. See [TESTING.md](TESTING.md) for detailed testing instructions
+
+### Migrating from v0.2.2
+
+If you're upgrading from SpaceShipMod v0.2.2 or earlier, please read [MIGRATION.md](MIGRATION.md) for important upgrade instructions.
+
 ### Option 1: Install All Mods (Recommended)
 For the full experience, install all three mods:
 1. Install `CircuitRequestController` 
@@ -113,9 +136,20 @@ All mods provide remote interfaces for inter-mod communication without direct co
 
 GPL-3.0
 
+## Documentation
+
+- [TESTING.md](TESTING.md) - Comprehensive testing guide for all three mods
+- [MIGRATION.md](MIGRATION.md) - Upgrade guide from v0.2.2 to v1.0.0
+- Individual mod READMEs:
+  - [CircuitRequestController/README.md](CircuitRequestController/README.md)
+  - [TransferRequestSystem/README.md](TransferRequestSystem/README.md)
+  - [SpaceShipMod/readme.md](SpaceShipMod/readme.md)
+
 ## Contributing
 
 Contributions are welcome! Each mod can be improved independently while maintaining compatibility with the others.
+
+Please read [TESTING.md](TESTING.md) for information on how to test your changes.
 
 ---
 
