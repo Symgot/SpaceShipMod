@@ -319,6 +319,9 @@ script.on_event(defines.events.on_tick, function(event)
         TransferRequest.process_requests(game.tick)
     end
     
+    -- Process cargo pod arrivals every tick (they need to arrive on time)
+    TransferRequest.process_cargo_pod_arrivals(game.tick)
+    
     -- Periodic cleanup (every 5 minutes)
     if game.tick % 18000 == 0 then
         TransferRequest.cleanup()
