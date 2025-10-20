@@ -185,9 +185,10 @@ function Stations.validate_transfer(source_platform, destination_platform)
         return false, "Platforms must be in the same orbit"
     end
     
-    -- Get platform types
-    local source_type = get_platform_type(source_platform)
-    local dest_type = get_platform_type(destination_platform)
+    -- Get platform types - use the exported function from SpaceShip for consistency
+    local SpaceShip = require("SpaceShip")
+    local source_type = SpaceShip.get_platform_type(source_platform)
+    local dest_type = SpaceShip.get_platform_type(destination_platform)
     
     -- Ship to Ship transfers are forbidden
     if source_type == "ship" and dest_type == "ship" then

@@ -13,7 +13,7 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
   - ✅ Station ↔ Station transfers allowed
   - ✅ Station ↔ Ship transfers allowed
   - ❌ Ship ↔ Ship transfers forbidden
-  - Note: Manual validation available via API; automatic enforcement requires additional implementation
+  - API: Use `SpaceShip.is_transfer_allowed(source_surface, dest_surface)` or `Stations.validate_transfer(source_platform, dest_platform)` for manual validation
 - **Circuit Network Control**: Full monitoring and control via circuit network signals (built into Factorio)
 
 ### Custom Spaceship Construction
