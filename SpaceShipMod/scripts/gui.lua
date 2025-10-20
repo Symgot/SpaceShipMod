@@ -1,7 +1,22 @@
-local SpaceShipFunctions = require("SpaceShipFunctionsScript")
-local SpaceShip = require("SpaceShip")
+local SpaceShipFunctions = require("scripts.functions")
+local SpaceShip = require("scripts.spaceship")
 local SpaceShipGuis = {}
 local gui_maker = require("__ship-gui__.spaceship_gui.spaceship_gui")
+
+-- Helper functions to access standalone mods via remote interface
+local function get_transfer_request()
+    if remote.interfaces["TransferRequestSystem"] then
+        return remote.call("TransferRequestSystem", "get_module")
+    end
+    return nil
+end
+
+local function get_circuit_request_controller()
+    if remote.interfaces["CircuitRequestController"] then
+        return remote.call("CircuitRequestController", "get_module")
+    end
+    return nil
+end
 
 -- Define event handlers
 function SpaceShipGuis.on_station_selected(event)
@@ -609,7 +624,11 @@ function SpaceShipGuis.create_transfer_request_gui(player, landing_pad_entity)
     if not surface or not surface.platform then return end
     
     local platform = surface.platform
-    local TransferRequest = require("TransferRequest")
+    local TransferRequest = get_transfer_request()
+    if not TransferRequest then
+        player.print("[color=red]TransferRequestSystem mod not found![/color]")
+        return
+    end
     
     -- Check if platform is in orbit
     local orbit = TransferRequest.get_platform_orbit(platform)
@@ -753,7 +772,8 @@ function SpaceShipGuis.handle_transfer_request_buttons(event)
     local player = game.get_player(event.player_index)
     if not player then return end
     
-    local TransferRequest = require("TransferRequest")
+    local TransferRequest = get_transfer_request()
+    if not TransferRequest then return end
     
     if button.name == "add-transfer-request-button" then
         local gui = player.gui.screen["transfer-request-gui"]
@@ -873,7 +893,11 @@ function SpaceShipGuis.create_circuit_controller_gui(player, controller_entity)
     if not surface or not surface.platform then return end
     
     local platform = surface.platform
-    local CircuitRequestController = require("CircuitRequestController")
+    local CircuitRequestController = get_circuit_request_controller()
+    if not CircuitRequestController then
+        player.print("[color=red]CircuitRequestController mod not found![/color]")
+        return
+    end
     
     -- Close existing GUI if present
     if player.gui.screen["circuit-controller-gui"] then
@@ -1079,7 +1103,8 @@ function SpaceShipGuis.handle_circuit_controller_buttons(event)
     local player = game.get_player(event.player_index)
     if not player then return end
     
-    local CircuitRequestController = require("CircuitRequestController")
+    local CircuitRequestController = get_circuit_request_controller()
+    if not CircuitRequestController then return end
     
     if button.name == "register-circuit-controller" then
         local gui = player.gui.screen["circuit-controller-gui"]

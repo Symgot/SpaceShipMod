@@ -186,7 +186,7 @@ function Stations.validate_transfer(source_platform, destination_platform)
     end
     
     -- Get platform types - use the exported function from SpaceShip for consistency
-    local SpaceShip = require("SpaceShip")
+    local SpaceShip = require("scripts.spaceship")
     local source_type = SpaceShip.get_platform_type(source_platform)
     local dest_type = SpaceShip.get_platform_type(destination_platform)
     

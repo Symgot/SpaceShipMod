@@ -210,6 +210,7 @@ end
 
 -- Synchronize group requests with the TransferRequest system
 -- This applies the logistics group requests to the actual transfer system
+-- Works only if TransferRequest mod is available
 function CircuitRequestController.sync_group_to_transfer_system(group_id)
     storage.logistics_groups = storage.logistics_groups or {}
     
@@ -230,7 +231,12 @@ function CircuitRequestController.sync_group_to_transfer_system(group_id)
     
     if not platform then return false end
     
-    local TransferRequest = require("TransferRequest")
+    -- Try to load TransferRequest if available (optional dependency)
+    local has_transfer_request, TransferRequest = pcall(require, "__TransferRequestSystem__.transfer-request")
+    if not has_transfer_request then
+        -- TransferRequest mod not available, skip sync
+        return true
+    end
     
     -- Clear all existing requests for this platform
     local existing_requests = TransferRequest.get_requests(platform)
