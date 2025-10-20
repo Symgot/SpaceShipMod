@@ -152,7 +152,7 @@ remote.call("CircuitRequestController", "get_module")
 
 **TransferRequestSystem:**
 ```lua
-remote.call("TransferRequestSystem", "register_request", platform, item, min, max)
+remote.call("TransferRequestSystem", "register_request", platform, item_name, minimum_quantity, requested_quantity)
 remote.call("TransferRequestSystem", "get_requests", platform)
 remote.call("TransferRequestSystem", "get_module")
 ```
