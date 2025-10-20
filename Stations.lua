@@ -174,6 +174,8 @@ function Stations.is_station_mode(platform)
 end
 
 -- Validate cargo pod transfer between platforms
+-- Note: This validation function is available for manual checks or future integration
+-- Factorio's cargo landing pad system doesn't expose events for automatic validation
 function Stations.validate_transfer(source_platform, destination_platform)
     if not source_platform or not source_platform.valid then return false, "Invalid source platform" end
     if not destination_platform or not destination_platform.valid then return false, "Invalid destination platform" end

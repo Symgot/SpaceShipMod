@@ -9,11 +9,12 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 - **Mode Toggle**: Switch between Station Mode and Ship Mode at the space platform hub
   - **Station Mode**: Platform is paused, thrusters are ineffective, no movement possible
   - **Ship Mode**: Platform can move via schedules and docking operations
-- **Transfer Rules**: Cargo transfers within the same orbit are restricted:
+- **Transfer Rules**: Validation functions for cargo transfers within the same orbit:
   - ✅ Station ↔ Station transfers allowed
   - ✅ Station ↔ Ship transfers allowed
   - ❌ Ship ↔ Ship transfers forbidden
-- **Circuit Network Control**: Full monitoring and control via circuit network signals
+  - Note: Manual validation available via API; automatic enforcement requires additional implementation
+- **Circuit Network Control**: Full monitoring and control via circuit network signals (built into Factorio)
 
 ### Custom Spaceship Construction
 - **Spaceship Flooring**: Special tiles that define your ship's structure
