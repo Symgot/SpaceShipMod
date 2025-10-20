@@ -259,8 +259,8 @@ function CircuitRequestController.process_controllers(current_tick)
             table.insert(controllers_to_remove, unit_number)
         else
             -- Read circuit signals
-            local red_network = controller.entity.get_circuit_network(defines.wire_connector_id.circuit_red)
-            local green_network = controller.entity.get_circuit_network(defines.wire_connector_id.circuit_green)
+            local red_network = controller.entity.get_circuit_network(1)
+            local green_network = controller.entity.get_circuit_network(2)
             
             local signals = {}
             
