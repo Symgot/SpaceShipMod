@@ -27,6 +27,15 @@ UpgradeBay.GRID_BY_QUALITY = {
     ["legendary"] = "upgrade-bay-grid-legendary"
 }
 
+-- Vehicle names by quality
+UpgradeBay.VEHICLE_BY_QUALITY = {
+    ["normal"] = "upgrade-bay-vehicle-common",
+    ["uncommon"] = "upgrade-bay-vehicle-uncommon",
+    ["rare"] = "upgrade-bay-vehicle-rare",
+    ["epic"] = "upgrade-bay-vehicle-epic",
+    ["legendary"] = "upgrade-bay-vehicle-legendary"
+}
+
 -- Module effects and caps
 UpgradeBay.MODULE_EFFECTS = {
     ["construction-core-module"] = {
@@ -131,16 +140,8 @@ function UpgradeBay.create_for_hub(hub_entity)
         quality = hub_entity.quality.name
     end
     
-    -- Map quality to vehicle name
-    local quality_to_vehicle = {
-        ["normal"] = "upgrade-bay-vehicle-common",
-        ["uncommon"] = "upgrade-bay-vehicle-uncommon",
-        ["rare"] = "upgrade-bay-vehicle-rare",
-        ["epic"] = "upgrade-bay-vehicle-epic",
-        ["legendary"] = "upgrade-bay-vehicle-legendary"
-    }
-    
-    local vehicle_name = quality_to_vehicle[quality] or "upgrade-bay-vehicle-common"
+    -- Get vehicle name for this quality
+    local vehicle_name = UpgradeBay.VEHICLE_BY_QUALITY[quality] or "upgrade-bay-vehicle-common"
     
     -- Create the upgrade bay vehicle near the hub (hidden)
     local upgrade_bay = hub_entity.surface.create_entity({
@@ -155,16 +156,12 @@ function UpgradeBay.create_for_hub(hub_entity)
         return nil
     end
     
-    -- Get the grid name for this quality
-    local grid_name = UpgradeBay.GRID_BY_QUALITY[quality] or "upgrade-bay-grid-common"
-    
     -- Store the upgrade bay data
     storage.upgrade_bays = storage.upgrade_bays or {}
     storage.upgrade_bays[hub_entity.unit_number] = {
         hub = hub_entity,
         vehicle = upgrade_bay,
-        quality = quality,
-        grid_name = grid_name
+        quality = quality
     }
     
     -- Make the vehicle non-interactable except through GUI

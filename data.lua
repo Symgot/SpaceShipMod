@@ -645,7 +645,6 @@ for i, quality in ipairs(quality_names) do
             inventory_size = 0,
             equipment_grid = grid_names[i],
             energy_source = {type = "void"},
-            burner = nil,
             animation = {
                 layers = {
                     {
