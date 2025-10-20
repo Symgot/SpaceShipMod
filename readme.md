@@ -193,6 +193,40 @@ storage.spaceships[id] = {
 ### Performance Tips
 - Keep ship sizes reasonable for better performance
 
+## Testing the Transfer/Request System
+
+To test the platform-to-platform transfer system:
+
+1. **Setup Two Platforms in Orbit**:
+   - Launch two space platforms to the same planet (e.g., both to Nauvis orbit)
+   - Each platform should have at least one cargo landing pad
+   - Wait until both platforms reach orbit (state: waiting at station)
+
+2. **Configure Transfer Request**:
+   - On Platform A: Click on a cargo landing pad
+   - Select an item (e.g., iron-plate)
+   - Set minimum quantity (e.g., 100)
+   - Set requested quantity (e.g., 1000)
+   - Click "Add Request"
+
+3. **Supply Items**:
+   - On Platform B: Place the requested items in a cargo landing pad
+   - Ensure quantity is at least the minimum (e.g., 100+ iron plates)
+
+4. **Observe Transfer**:
+   - Wait up to 60 ticks (1 second) for the transfer system to process
+   - Items should automatically transfer from Platform B to Platform A
+   - Check cargo landing pads to verify the transfer
+
+5. **Test Transfer Restrictions**:
+   - If using the SpaceShip mod with ship-type platforms:
+   - Verify that ship-to-ship transfers are blocked
+   - Station-to-station and station-to-ship transfers should work
+
+6. **Test Deadlock Prevention**:
+   - Create mutual requests (Platform A requests from B, Platform B requests from A)
+   - System should prevent circular dependencies
+
 ## Contributing
 
 This mod is open source. Feel free to contribute improvements, bug fixes, or new features.

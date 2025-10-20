@@ -366,6 +366,7 @@ function TransferRequest.process_requests(current_tick)
     storage.platform_requests = storage.platform_requests or {}
     
     local transfers_processed = 0
+    local platforms_to_remove = {}
     
     -- Iterate through all platforms with requests
     for platform_key, requests in pairs(storage.platform_requests) do
@@ -386,8 +387,8 @@ function TransferRequest.process_requests(current_tick)
         end
         
         if not dest_platform or not dest_platform.valid then
-            -- Platform no longer exists, clean up requests
-            storage.platform_requests[platform_key] = nil
+            -- Platform no longer exists, mark for cleanup
+            table.insert(platforms_to_remove, platform_key)
         else
             -- Process requests for this platform
             local orbit = get_platform_orbit(dest_platform)
@@ -415,6 +416,11 @@ function TransferRequest.process_requests(current_tick)
                 end
             end
         end
+    end
+    
+    -- Clean up platforms marked for removal
+    for _, platform_key in ipairs(platforms_to_remove) do
+        storage.platform_requests[platform_key] = nil
     end
     
     storage.last_request_tick = current_tick
