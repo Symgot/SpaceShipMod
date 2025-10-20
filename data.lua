@@ -245,7 +245,7 @@ data:extend({
         subgroup = "space-rocket",
         stack_size = 1,
         weight = 1 * tons,
-        surface = "space-ship-surface",
+        surface = "space-platform",
         trigger =
         {
             {
