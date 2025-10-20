@@ -70,15 +70,39 @@ local function get_platforms_in_same_orbit(platform)
 end
 
 -- Check if transfer is allowed between two platforms based on type
--- This respects SpaceShip mod transfer restrictions
+-- This respects SpaceShip mod transfer restrictions if available
 local function is_transfer_allowed(source_platform, dest_platform)
-    -- Use Stations module for transfer validation (compatible with SpaceShip mod)
-    local Stations = require("Stations")
-    if Stations and Stations.validate_transfer then
+    -- Try to use Stations module for transfer validation (compatible with SpaceShip mod)
+    local has_stations, Stations = pcall(require, "__SpaceShipMod__.scripts.stations")
+    if has_stations and Stations and Stations.validate_transfer then
         return Stations.validate_transfer(source_platform, dest_platform)
     end
     
-    -- Default behavior: allow all transfers between platforms in same orbit
+    -- Fallback: check platform types manually based on name convention
+    local function get_platform_type(platform)
+        if not platform or not platform.valid then return nil end
+        -- Check tags first
+        if platform.tags and platform.tags.ship_type then
+            return platform.tags.ship_type
+        end
+        -- Check name
+        if string.find(platform.name, "-ship") then
+            return "ship"
+        elseif string.find(platform.name, "-station") then
+            return "platform"
+        end
+        return nil
+    end
+    
+    local source_type = get_platform_type(source_platform)
+    local dest_type = get_platform_type(dest_platform)
+    
+    -- Ship to Ship transfers are forbidden
+    if source_type == "ship" and dest_type == "ship" then
+        return false, "Ship to Ship transfers forbidden"
+    end
+    
+    -- Default behavior: allow all other transfers between platforms in same orbit
     return true, "Transfer allowed"
 end
 

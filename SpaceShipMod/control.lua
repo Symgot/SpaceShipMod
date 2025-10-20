@@ -1,11 +1,24 @@
-local SpaceShipGuis = require("SpaceShipGuisScript")
-local SpaceShipFunctions = require("SpaceShipFunctionsScript")
-local SpaceShip = require("SpaceShip")
-local Stations = require("Stations")
-local UpgradeBay = require("UpgradeBay")
-local TransferRequest = require("TransferRequest")
-local CircuitRequestController = require("CircuitRequestController")
+local SpaceShipGuis = require("scripts.gui")
+local SpaceShipFunctions = require("scripts.functions")
+local SpaceShip = require("scripts.spaceship")
+local Stations = require("scripts.stations")
+local UpgradeBay = require("scripts.upgrade-bay")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
+
+-- Get references to standalone mods via remote interface
+local function get_transfer_request()
+    if remote.interfaces["TransferRequestSystem"] then
+        return remote.call("TransferRequestSystem", "get_module")
+    end
+    return nil
+end
+
+local function get_circuit_request_controller()
+    if remote.interfaces["CircuitRequestController"] then
+        return remote.call("CircuitRequestController", "get_module")
+    end
+    return nil
+end
 
 
 -- Initialize storage tables
@@ -16,8 +29,7 @@ script.on_init(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
     UpgradeBay.init()
-    TransferRequest.init()
-    CircuitRequestController.init()
+    -- TransferRequest and CircuitRequestController are initialized by their own mods
 end)
 
 -- Handle configuration changes (mod updates)
@@ -25,8 +37,7 @@ script.on_configuration_changed(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
     UpgradeBay.init()
-    TransferRequest.init()
-    CircuitRequestController.init()
+    -- TransferRequest and CircuitRequestController are initialized by their own mods
 end)
 
 -- Get the event IDs from gui mod
@@ -162,10 +173,7 @@ script.on_event(defines.events.on_player_mined_entity, function(event)
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
     end
-    -- Unregister circuit controller when mined
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
+    -- Circuit controller unregistration is handled by CircuitRequestController mod
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
@@ -174,10 +182,7 @@ script.on_event(defines.events.on_robot_mined_entity, function(event)
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
     end
-    -- Unregister circuit controller when mined
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
+    -- Circuit controller unregistration is handled by CircuitRequestController mod
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
@@ -186,18 +191,12 @@ script.on_event(defines.events.on_space_platform_mined_entity, function(event)
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
     end
-    -- Unregister circuit controller when mined
-    if event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
+    -- Circuit controller unregistration is handled by CircuitRequestController mod
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_entity_died, function(event)
-    -- Unregister circuit controller when destroyed
-    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
-        CircuitRequestController.unregister_controller(event.entity.unit_number)
-    end
+    -- Circuit controller destruction is handled by CircuitRequestController mod
 end)
 
 script.on_event(defines.events.on_gui_opened, function(event)
@@ -235,6 +234,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
     end
     
     -- Handle cargo landing pad opening for transfer requests
+    -- GUI creation is handled by TransferRequestSystem mod, but we provide the implementation
     if event.entity and event.entity.valid and event.entity.name == "cargo-landing-pad" then
         local surface = event.entity.surface
         if surface and surface.platform then
@@ -243,6 +243,7 @@ script.on_event(defines.events.on_gui_opened, function(event)
     end
     
     -- Handle circuit request controller opening
+    -- GUI creation is handled by CircuitRequestController mod, but we provide the implementation
     if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
         SpaceShipGuis.create_circuit_controller_gui(player, event.entity)
     end
@@ -343,20 +344,7 @@ script.on_event(defines.events.on_tick, function(event)
         end
         SpaceShip.check_automatic_behavior()
         
-        -- Process transfer requests between platforms
-        TransferRequest.process_requests(game.tick)
-        
-        -- Process circuit request controllers
-        CircuitRequestController.process_controllers(game.tick)
-    end
-    
-    -- Process cargo pod arrivals every tick (they need to arrive on time)
-    TransferRequest.process_cargo_pod_arrivals(game.tick)
-    
-    -- Periodic cleanup (every 5 minutes)
-    if game.tick % 18000 == 0 then
-        TransferRequest.cleanup()
-        CircuitRequestController.cleanup()
+        -- TransferRequest and CircuitRequestController processing is handled by their own mods
     end
 
     -- Process pending planet drops
@@ -582,3 +570,29 @@ script.on_event(defines.events.on_gui_closed, function(event)
         player.gui.screen["dock-confirmation-gui"].destroy()
     end
 end)
+
+-- Provide remote interface for standalone mods to access GUI functions
+remote.add_interface("SpaceShipMod", {
+    -- GUI access for TransferRequestSystem
+    create_transfer_request_gui = function(player, entity)
+        return SpaceShipGuis.create_transfer_request_gui(player, entity)
+    end,
+    
+    handle_transfer_request_buttons = function(event)
+        return SpaceShipGuis.handle_transfer_request_buttons(event)
+    end,
+    
+    -- GUI access for CircuitRequestController
+    create_circuit_controller_gui = function(player, entity)
+        return SpaceShipGuis.create_circuit_controller_gui(player, entity)
+    end,
+    
+    handle_circuit_controller_buttons = function(event)
+        return SpaceShipGuis.handle_circuit_controller_buttons(event)
+    end,
+    
+    -- Stations module access for validation
+    get_stations_module = function()
+        return Stations
+    end
+})
