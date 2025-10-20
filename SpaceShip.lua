@@ -328,6 +328,17 @@ function SpaceShip.delete_station(ship, station_index)
 end
 
 function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_types)
+    -- Check if player is on the ship
+    local player_on_ship = false
+    if ship.player_in_cockpit and ship.player_in_cockpit.valid then
+        player_on_ship = true
+    end
+    
+    -- If player is not on ship, use multi-tick cloning to avoid UPS drops
+    if not player_on_ship then
+        return SpaceShip.start_multi_tick_clone(ship, dest_surface, dest_center, excluded_types)
+    end
+    
     local src_surface = ship.surface.platform.surface
     -- Create the offset between the source and destination areas
     local reference_tile = ship.reference_tile
@@ -450,14 +461,212 @@ function SpaceShip.clone_ship_area(ship, dest_surface, dest_center, excluded_typ
     SpaceShip.start_scan_ship(ship)
 end
 
+-- Multi-tick clone system to prevent UPS drops for large ships when player is not on ship
+function SpaceShip.start_multi_tick_clone(ship, dest_surface, dest_center, excluded_types)
+    if storage.clone_state then
+        game.print("Clone operation already in progress, please wait.")
+        return
+    end
+    
+    local src_surface = ship.surface.platform.surface
+    local reference_tile = ship.reference_tile
+    if not reference_tile then
+        error("Reference tile is missing from ship data.")
+    end
+
+    local offset = {
+        x = math.ceil(dest_center.x - reference_tile.position.x),
+        y = math.ceil(dest_center.y - reference_tile.position.y)
+    }
+    
+    -- Calculate bounds for chunk generation
+    local min_x, max_x = math.huge, -math.huge
+    local min_y, max_y = math.huge, -math.huge
+    
+    for _, tile in pairs(ship.floor) do
+        local dest_x = tile.position.x + offset.x
+        local dest_y = tile.position.y + offset.y
+        min_x = math.min(min_x, dest_x)
+        max_x = math.max(max_x, dest_x)
+        min_y = math.min(min_y, dest_y)
+        max_y = math.max(max_y, dest_y)
+    end
+    
+    local padding = 32
+    min_x = min_x - padding
+    max_x = max_x + padding
+    min_y = min_y - padding
+    max_y = max_y + padding
+    
+    local ship_width = max_x - min_x
+    local ship_height = max_y - min_y
+    local max_dimension = math.max(ship_width, ship_height)
+    local chunk_radius = math.ceil(max_dimension / 32) + 2
+    
+    game.print("Starting multi-tick clone for ship (background mode)...")
+    
+    -- Request chunk generation
+    dest_surface.request_to_generate_chunks(dest_center, chunk_radius)
+    dest_surface.force_generate_chunk_requests()
+    
+    -- Prepare tiles to set
+    local tiles_to_set = {}
+    for _, tile in pairs(ship.floor) do
+        table.insert(tiles_to_set, {
+            name = "spaceship-flooring",
+            position = {
+                x = tile.position.x + offset.x,
+                y = tile.position.y + offset.y
+            }
+        })
+    end
+    
+    -- Prepare entities to clone
+    local entities_to_clone = {}
+    if ship.hub and ship.hub.valid then
+        table.insert(entities_to_clone, ship.hub)
+    end
+    
+    for _, entity in pairs(ship.entities) do
+        if entity.valid and not excluded_types[entity.type] then
+            if not (ship.hub and entity.unit_number == ship.hub.unit_number) then
+                table.insert(entities_to_clone, entity)
+            end
+        end
+    end
+    
+    storage.clone_state = {
+        ship_id = ship.id,
+        src_surface = src_surface,
+        dest_surface = dest_surface,
+        offset = offset,
+        tiles_to_set = tiles_to_set,
+        entities_to_clone = entities_to_clone,
+        entities_to_destroy = ship.entities,
+        ship_floor = ship.floor,
+        min_x = min_x,
+        max_x = max_x,
+        min_y = min_y,
+        max_y = max_y,
+        stage = "tiles", -- tiles -> entities -> cleanup -> scan
+        entities_per_tick = 20, -- Clone 20 entities per tick to avoid UPS drops
+        tiles_per_tick = 100, -- Set 100 tiles per tick
+        tiles_index = 1, -- Track current position in tiles array
+        entities_index = 1, -- Track current position in entities array
+        destroy_index = 1 -- Track current position in destroy array
+    }
+    
+    game.print("Multi-tick clone initiated. This may take several ticks.")
+end
+
+-- Continue multi-tick clone operation
+function SpaceShip.continue_multi_tick_clone()
+    local state = storage.clone_state
+    if not state then return end
+    
+    local ship = storage.spaceships[state.ship_id]
+    if not ship then
+        game.print("Error: Ship not found during clone operation.")
+        storage.clone_state = nil
+        return
+    end
+    
+    if state.stage == "tiles" then
+        -- Set tiles in batches using index
+        if state.tiles_index <= #state.tiles_to_set then
+            local batch = {}
+            local end_index = math.min(state.tiles_index + state.tiles_per_tick - 1, #state.tiles_to_set)
+            for i = state.tiles_index, end_index do
+                table.insert(batch, state.tiles_to_set[i])
+            end
+            state.dest_surface.set_tiles(batch)
+            state.tiles_index = end_index + 1
+        else
+            -- Tiles done, move to entities stage
+            state.stage = "entities"
+            game.print("Tiles cloned, now cloning entities...")
+        end
+    elseif state.stage == "entities" then
+        -- Clone entities in batches using index
+        if state.entities_index <= #state.entities_to_clone then
+            local batch = {}
+            local end_index = math.min(state.entities_index + state.entities_per_tick - 1, #state.entities_to_clone)
+            for i = state.entities_index, end_index do
+                table.insert(batch, state.entities_to_clone[i])
+            end
+            
+            state.src_surface.clone_entities({
+                entities = batch,
+                destination_surface = state.dest_surface,
+                destination_offset = state.offset,
+                snap_to_grid = true
+            })
+            state.entities_index = end_index + 1
+        else
+            -- Entities cloned, move to cleanup stage
+            state.stage = "cleanup"
+            game.print("Entities cloned, cleaning up old ship...")
+        end
+    elseif state.stage == "cleanup" then
+        -- Destroy old entities in batches using index
+        if state.destroy_index <= #state.entities_to_destroy then
+            local batch_count = 0
+            while batch_count < 20 and state.destroy_index <= #state.entities_to_destroy do
+                local entity = state.entities_to_destroy[state.destroy_index]
+                if entity and entity.valid then
+                    entity.destroy()
+                end
+                batch_count = batch_count + 1
+                state.destroy_index = state.destroy_index + 1
+            end
+        else
+            -- Cleanup done, restore hidden tiles and finish
+            local hidden_tiles_to_set = {}
+            for _, tile in pairs(state.ship_floor) do
+                local hidden_tile_name = state.src_surface.get_hidden_tile({ x = tile.position.x, y = tile.position.y })
+                if hidden_tile_name then
+                    table.insert(hidden_tiles_to_set, {
+                        name = hidden_tile_name,
+                        position = { x = tile.position.x, y = tile.position.y }
+                    })
+                end
+            end
+            
+            if #hidden_tiles_to_set > 0 then
+                state.src_surface.set_tiles(hidden_tiles_to_set)
+            end
+            
+            -- Chart the area
+            if ship.player and ship.player.valid then
+                local chart_area = {
+                    left_top = {x = state.min_x, y = state.min_y},
+                    right_bottom = {x = state.max_x, y = state.max_y}
+                }
+                ship.player.force.chart(state.dest_surface, chart_area)
+            end
+            
+            game.print("Multi-tick clone completed!")
+            storage.clone_state = nil
+            SpaceShip.start_scan_ship(ship)
+        end
+    end
+end
+
+
 function SpaceShip.clone_ship_to_space_platform(ship)
     if not ship or not ship.player or not ship.player.valid then
-        ship.game.print("Error: Invalid player.")
+        game.print("Error: Invalid player.")
         return
     end
 
     if not ship.scanned then
         game.print("Error: No scanned ship data found. Run a ship scan first.")
+        return
+    end
+    
+    -- Check if platform is already on its own surface (already in space)
+    if ship.own_surface then
+        game.print("[color=yellow]Ship is already on its own space platform.[/color]")
         return
     end
 
@@ -587,7 +796,7 @@ end
 function SpaceShip.continue_scan_ship()
     local state = storage.scan_state
     if not state or #state.tiles_to_check == 0 then
-        -- Scanning is completel
+        -- Scanning is complete
         if state then
             local temp_entities = {}
             for _, x in pairs(state.entities_on_flooring) do --check through x tables
@@ -1169,9 +1378,18 @@ function SpaceShip.on_platform_state_change(event)
             return
         end
 
-        if storage.docking_ports[storage_docking_port].ship_docked then
-            game.print("Warning: Target docking port already has docked ship " .. ship.port_records[schedule.current])
-            return
+        -- Check if docking port has reached its ship limit
+        local port_data = storage.docking_ports[storage_docking_port]
+        if port_data.ship_docked then
+            -- Port already has a ship docked
+            local current_docked_count = 1
+            
+            -- Check ship limit
+            local ship_limit = port_data.ship_limit or 1
+            if current_docked_count >= ship_limit then
+                game.print("[color=red]Cannot dock: Target docking port '" .. ship.port_records[schedule.current] .. "' has reached its ship limit (" .. ship_limit .. ")[/color]")
+                return
+            end
         end
 
         -- Align the ship's docking port with the target docking port
@@ -1368,6 +1586,28 @@ function SpaceShip.signal_changed(ship, station_index, condition_index, signal)
 end
 
 function SpaceShip.auto_manual_changed(ship)
+    -- Check if trying to enable automatic mode
+    if not ship.automatic then
+        -- Validate that ship has required configuration for automatic mode
+        if not ship.schedule or not ship.schedule.records or #ship.schedule.records == 0 then
+            game.print("[color=red]Cannot enable automatic mode: No schedule configured![/color]")
+            return
+        end
+        
+        -- Check that all stations in schedule have port assignments
+        local has_unassigned_ports = false
+        for idx, record in pairs(ship.schedule.records) do
+            if not ship.port_records[idx] or ship.port_records[idx] == "" then
+                game.print("[color=red]Cannot enable automatic mode: Station " .. idx .. " (" .. (record.station or "Unknown") .. ") has no docking port selected![/color]")
+                has_unassigned_ports = true
+            end
+        end
+        
+        if has_unassigned_ports then
+            return
+        end
+    end
+    
     if ship.automatic == true then ship.automatic = false else ship.automatic = true end
     if ship.own_surface == true then
         if ship.automatic == true then

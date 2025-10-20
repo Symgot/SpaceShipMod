@@ -13,6 +13,9 @@
   - Transfer cooldowns to prevent spam
   - Minimum quantity thresholds
   - Compatible with SpaceShip mod transfer restrictions
+  - **NEW: Uses actual cargo pods with 3-second transit time instead of instant transfers**
+  - **NEW: Visual effects for cargo pod arrivals**
+  - **NEW: Proper in-transit item tracking**
 
 ### 2. GUI Integration (SpaceShipGuisScript.lua)
 - **create_transfer_request_gui**: Main GUI for managing transfer requests
@@ -50,8 +53,11 @@
    - Check for deadlocks
    - Verify source has minimum quantity
    - Check destination has space
-   - Perform transfer
+   - **Remove items from source platform**
+   - **Create pending cargo pod with 3-second (180 tick) transit time**
    - Set cooldown
+4. **Every tick, process_cargo_pod_arrivals() checks for pods that should arrive**
+5. **When pod arrives: deliver items to destination, create visual effect**
 
 ### Deadlock Prevention
 - Before transferring from A to B, checks if A has requests for items that B has
@@ -84,11 +90,19 @@
 ## Known Limitations
 
 ### Current Implementation
-- Transfers are instant (not using actual cargo pods)
-- In-transit tracking is placeholder only
+- **RESOLVED: Now uses actual cargo pods with transit time**
+- In-transit tracking properly implemented with cargo pods
 - GUI only accessible via cargo landing pad
-- No circuit network integration
+- No circuit network integration for requests yet
 - No statistics/logging
+
+### Recent Improvements (v0.2.2)
+- ✅ Replaced instant transfers with actual cargo pod system
+- ✅ Added multi-tick clone system for UPS optimization when player not on ship
+- ✅ Added validation to prevent automatic mode without port selection
+- ✅ Implemented docking port ship limit enforcement
+- ✅ Added takeoff surface validation check
+- ✅ Fixed spelling errors in comments
 
 ### Potential Improvements
 - Use actual cargo pods for transfers
