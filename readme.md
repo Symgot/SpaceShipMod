@@ -16,6 +16,18 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
   - API: Use `SpaceShip.is_transfer_allowed(source_surface, dest_surface)` or `Stations.validate_transfer(source_platform, dest_platform)` for manual validation
 - **Circuit Network Control**: Full monitoring and control via circuit network signals (built into Factorio)
 
+### Platform-to-Platform Transfer/Request System
+- **Automatic Item Transfers**: Platforms in the same orbit can request items from each other
+- **Request Management**: Configure transfer requests via cargo landing pad GUI
+  - Set minimum quantity threshold (items only transfer if source has at least this amount)
+  - Set requested quantity (maximum amount to transfer)
+- **UPS-Friendly**: Batched processing with configurable transfer limits
+- **Deadlock Prevention**: Intelligent system prevents circular dependencies and infinite loops
+- **Storage Validation**: Checks available storage space before transfers (including in-transit items)
+- **Orbit Restriction**: Only platforms orbiting the same planet can exchange items
+- **Compatible with SpaceShip Mod**: Respects transfer restrictions (no ship-to-ship transfers)
+- **Standalone**: Works independently without SpaceShip mod installed
+
 ### Custom Spaceship Construction
 - **Spaceship Flooring**: Special tiles that define your ship's structure
 - **Control Hub**: Central command center for ship operations
@@ -91,6 +103,17 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 2. **Load Cargo**: Place items in the control hub inventory
 3. **Prepare Resources**: Ensure you have drop costs (rocket fuel, processing units, low-density structures)
 4. **Execute Drop**: Use GUI buttons to drop player or cargo to planets
+
+### Platform Transfer Requests
+1. **Open Cargo Landing Pad**: Click on a cargo landing pad on your space platform
+2. **View Current Orbit**: Check if platform is in orbit (transfers only work when orbiting a planet)
+3. **Add Request**:
+   - Select the item you want to request
+   - Set minimum quantity (items only transfer if source has at least this amount)
+   - Set requested quantity (maximum amount to transfer per cycle)
+   - Click "Add Request"
+4. **Automatic Transfers**: The system will automatically transfer items from other platforms in the same orbit
+5. **Remove Request**: Click "Remove" next to any request to stop requesting that item
 
 ## Advanced Features
 
@@ -169,6 +192,40 @@ storage.spaceships[id] = {
 
 ### Performance Tips
 - Keep ship sizes reasonable for better performance
+
+## Testing the Transfer/Request System
+
+To test the platform-to-platform transfer system:
+
+1. **Setup Two Platforms in Orbit**:
+   - Launch two space platforms to the same planet (e.g., both to Nauvis orbit)
+   - Each platform should have at least one cargo landing pad
+   - Wait until both platforms reach orbit (state: waiting at station)
+
+2. **Configure Transfer Request**:
+   - On Platform A: Click on a cargo landing pad
+   - Select an item (e.g., iron-plate)
+   - Set minimum quantity (e.g., 100)
+   - Set requested quantity (e.g., 1000)
+   - Click "Add Request"
+
+3. **Supply Items**:
+   - On Platform B: Place the requested items in a cargo landing pad
+   - Ensure quantity is at least the minimum (e.g., 100+ iron plates)
+
+4. **Observe Transfer**:
+   - Wait up to 60 ticks (1 second) for the transfer system to process
+   - Items should automatically transfer from Platform B to Platform A
+   - Check cargo landing pads to verify the transfer
+
+5. **Test Transfer Restrictions**:
+   - If using the SpaceShip mod with ship-type platforms:
+   - Verify that ship-to-ship transfers are blocked
+   - Station-to-station and station-to-ship transfers should work
+
+6. **Test Deadlock Prevention**:
+   - Create mutual requests (Platform A requests from B, Platform B requests from A)
+   - System should prevent circular dependencies
 
 ## Contributing
 
