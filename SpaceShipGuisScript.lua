@@ -554,20 +554,9 @@ function SpaceShipGuis.handle_hub_mode_toggle(event)
     if not player then return end
     
     -- Find the hub entity
-    local hub = nil
-    for _, surface in pairs(game.surfaces) do
-        local hubs = surface.find_entities_filtered({
-            name = "space-platform-hub",
-            limit = 1000
-        })
-        for _, h in pairs(hubs) do
-            if h.unit_number == hub_unit then
-                hub = h
-                break
-            end
-        end
-        if hub then break end
-    end
+    -- Use cached lookup for hub entity by unit_number
+    -- Ensure global.hubs_by_unit_number is maintained elsewhere when hubs are created/destroyed
+    local hub = global.hubs_by_unit_number and global.hubs_by_unit_number[hub_unit]
     
     if not hub or not hub.valid then return end
     if not hub.surface.platform then return end
