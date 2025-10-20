@@ -199,6 +199,11 @@ function Stations.validate_transfer(source_platform, destination_platform)
     return true, "Transfer allowed"
 end
 
+-- Function to get platform type (public wrapper around local function)
+function Stations.get_platform_type(platform)
+    return get_platform_type(platform)
+end
+
 -- Function to initialize station management (call this from control.lua)
 function Stations.init()
     -- Any initialization logic can go here

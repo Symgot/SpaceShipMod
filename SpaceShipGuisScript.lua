@@ -563,10 +563,28 @@ function SpaceShipGuis.handle_hub_mode_toggle(event)
     local player = game.get_player(event.player_index)
     if not player then return end
     
-    -- Find the hub entity
-    -- Use cached lookup for hub entity by unit_number
-    -- Ensure global.hubs_by_unit_number is maintained elsewhere when hubs are created/destroyed
-    local hub = global.hubs_by_unit_number and global.hubs_by_unit_number[hub_unit]
+    -- Find the hub entity by searching through all spaceships
+    local hub = nil
+    for _, ship in pairs(storage.spaceships or {}) do
+        if ship.hub and ship.hub.valid and ship.hub.unit_number == hub_unit then
+            hub = ship.hub
+            break
+        end
+    end
+    
+    -- If not found in spaceships, search all space-platform-hub entities across all platforms
+    if not hub then
+        for _, force_platform in pairs(player.force.platforms) do
+            local hubs = force_platform.surface.find_entities_filtered({name = "space-platform-hub"})
+            for _, found_hub in ipairs(hubs) do
+                if found_hub.unit_number == hub_unit then
+                    hub = found_hub
+                    break
+                end
+            end
+            if hub then break end
+        end
+    end
     
     if not hub or not hub.valid then return end
     if not hub.surface.platform then return end

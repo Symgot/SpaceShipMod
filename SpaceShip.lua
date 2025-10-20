@@ -1,6 +1,7 @@
 local SpaceShip = {}
 SpaceShip.__index = SpaceShip
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
+local Stations = require("Stations")
 
 local DROP_COST = {
     ["rocket-fuel"] = 20,
@@ -1897,7 +1898,7 @@ function SpaceShip.handle_built_entity(entity, player)
     -- Warn about transfer rules when cargo landing pads are placed
     if entity.name == "cargo-landing-pad" and entity.surface.platform then
         local platform = entity.surface.platform
-        local platform_type = SpaceShip.get_platform_type(platform)
+        local platform_type = Stations.get_platform_type(platform)
         if platform_type == "ship" and player and player.valid then
             player.print({"message.transfer-ship-to-ship-forbidden"})
         end
@@ -2089,6 +2090,24 @@ function SpaceShip.get_capacity_signals(ship)
     end
     
     return signals
+end
+
+-- Check if transfer between surfaces is allowed based on platform types
+function SpaceShip.is_transfer_allowed(source_surface, dest_surface)
+    -- Get platforms from surfaces
+    local source_platform = source_surface and source_surface.platform
+    local dest_platform = dest_surface and dest_surface.platform
+    
+    if not source_platform or not dest_platform then
+        return false -- No platform on one of the surfaces
+    end
+    
+    return Stations.validate_transfer(source_platform, dest_platform)
+end
+
+-- Get platform type for a given platform
+function SpaceShip.get_platform_type(platform)
+    return Stations.get_platform_type(platform)
 end
 
 return SpaceShip
