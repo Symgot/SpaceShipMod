@@ -1,7 +1,7 @@
 local SpaceShip = {}
 SpaceShip.__index = SpaceShip
-local SpaceShipFunctions = require("SpaceShipFunctionsScript")
-local Stations = require("Stations")
+local SpaceShipFunctions = require("scripts.functions")
+local Stations = require("scripts.stations")
 
 local DROP_COST = {
     ["rocket-fuel"] = 20,
@@ -1263,7 +1263,7 @@ function SpaceShip.check_automatic_behavior()
         -- Check if platform is in station mode (movement disabled)
         if ship.hub and ship.hub.valid and ship.hub.surface.platform then
             local platform = ship.hub.surface.platform
-            local Stations = require("Stations")
+            local Stations = require("scripts.stations")
             if Stations.is_station_mode(platform) then
                 -- Platform is in station mode, skip automatic movement
                 goto continue
@@ -2081,7 +2081,7 @@ function SpaceShip.handle_built_entity(entity, player)
                 hub_unit_number = hub.unit_number
                 
                 -- Check capacity limits using UpgradeBay
-                local UpgradeBay = require("UpgradeBay")
+                local UpgradeBay = require("scripts.upgrade-bay")
                 local can_place, reason = UpgradeBay.can_place_entity(
                     hub_unit_number,
                     entity.type,
@@ -2289,7 +2289,7 @@ function SpaceShip.get_upgrade_effects(ship)
         return nil
     end
     
-    local UpgradeBay = require("UpgradeBay")
+    local UpgradeBay = require("scripts.upgrade-bay")
     return UpgradeBay.calculate_effects(ship.hub.unit_number)
 end
 
@@ -2299,7 +2299,7 @@ function SpaceShip.apply_thruster_efficiency(ship)
         return 1.0
     end
     
-    local UpgradeBay = require("UpgradeBay")
+    local UpgradeBay = require("scripts.upgrade-bay")
     local bonus = UpgradeBay.get_thruster_efficiency_bonus(ship.hub.unit_number)
     return 1.0 + bonus
 end
@@ -2310,7 +2310,7 @@ function SpaceShip.get_capacity_signals(ship)
         return {}
     end
     
-    local UpgradeBay = require("UpgradeBay")
+    local UpgradeBay = require("scripts.upgrade-bay")
     local hub_unit = ship.hub.unit_number
     
     local signals = {}
