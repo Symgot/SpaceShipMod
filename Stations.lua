@@ -154,18 +154,14 @@ function Stations.set_station_mode(platform, enabled)
     platform.tags = platform.tags or {}
     platform.tags.station_mode = enabled
     
-    -- Set schedule to stopped when in station mode
+    -- In station mode, pause the platform to prevent movement
     if enabled then
-        -- Pause platform movement
-        if platform.schedule then
-            platform.schedule.stopped = true
-        end
-        game.print("[color=yellow]" .. platform.name .. " is now in Station Mode (movement disabled)[/color]")
+        -- Pause platform - this stops all movement
+        platform.paused = true
+        game.print("[color=yellow]" .. platform.name .. " is now in Station Mode (movement paused, thrusters ineffective)[/color]")
     else
-        -- Allow platform movement  
-        if platform.schedule then
-            platform.schedule.stopped = false
-        end
+        -- Unpause platform to allow movement
+        platform.paused = false
         game.print("[color=green]" .. platform.name .. " is now in Ship Mode (movement enabled)[/color]")
     end
 end
