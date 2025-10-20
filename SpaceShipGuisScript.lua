@@ -600,4 +600,260 @@ function SpaceShipGuis.handle_hub_mode_toggle(event)
     SpaceShipGuis.create_hub_mode_gui(player, hub)
 end
 
+-- Create transfer request GUI for cargo landing pad
+function SpaceShipGuis.create_transfer_request_gui(player, landing_pad_entity)
+    if not player or not player.valid then return end
+    if not landing_pad_entity or not landing_pad_entity.valid then return end
+    
+    local surface = landing_pad_entity.surface
+    if not surface or not surface.platform then return end
+    
+    local platform = surface.platform
+    local TransferRequest = require("TransferRequest")
+    
+    -- Check if platform is in orbit
+    local orbit = TransferRequest.get_platform_orbit(platform)
+    
+    -- Close existing GUI if present
+    if player.gui.screen["transfer-request-gui"] then
+        player.gui.screen["transfer-request-gui"].destroy()
+    end
+    
+    -- Create main frame
+    local main_frame = player.gui.screen.add({
+        type = "frame",
+        name = "transfer-request-gui",
+        direction = "vertical",
+        caption = "Platform Transfer Requests"
+    })
+    main_frame.auto_center = true
+    
+    -- Add orbit status
+    local status_flow = main_frame.add({
+        type = "flow",
+        direction = "horizontal"
+    })
+    status_flow.add({
+        type = "label",
+        caption = "Orbit Status: "
+    })
+    status_flow.add({
+        type = "label",
+        caption = orbit or "Traveling (no transfers available)",
+        style = orbit and "heading_3_label" or "invalid_label"
+    })
+    
+    -- Add requests list
+    local requests = TransferRequest.get_requests(platform)
+    
+    local list_frame = main_frame.add({
+        type = "frame",
+        style = "inside_shallow_frame",
+        direction = "vertical"
+    })
+    
+    local list_header = list_frame.add({
+        type = "flow",
+        direction = "horizontal"
+    })
+    list_header.add({type = "label", caption = "Item", style = "bold_label"})
+    list_header.add({type = "label", caption = " - Min: ", style = "bold_label"})
+    list_header.add({type = "label", caption = " - Requested: ", style = "bold_label"})
+    
+    for item_name, request in pairs(requests) do
+        local item_flow = list_frame.add({
+            type = "flow",
+            direction = "horizontal"
+        })
+        
+        item_flow.add({
+            type = "sprite-button",
+            sprite = "item/" .. item_name,
+            tooltip = item_name
+        })
+        
+        item_flow.add({
+            type = "label",
+            caption = item_name
+        })
+        
+        item_flow.add({
+            type = "label",
+            caption = " (Min: " .. request.minimum_quantity .. ", Req: " .. request.requested_quantity .. ")"
+        })
+        
+        item_flow.add({
+            type = "button",
+            name = "remove-transfer-request",
+            caption = "Remove",
+            tags = {platform_index = platform.index, item_name = item_name}
+        })
+    end
+    
+    -- Add new request section
+    main_frame.add({
+        type = "label",
+        caption = "Add New Request",
+        style = "heading_2_label"
+    })
+    
+    local input_table = main_frame.add({
+        type = "table",
+        column_count = 2
+    })
+    
+    input_table.add({type = "label", caption = "Item:"})
+    input_table.add({
+        type = "choose-elem-button",
+        name = "transfer-request-item-chooser",
+        elem_type = "item"
+    })
+    
+    input_table.add({type = "label", caption = "Minimum Quantity:"})
+    input_table.add({
+        type = "textfield",
+        name = "transfer-request-min-quantity",
+        text = "100",
+        numeric = true
+    })
+    
+    input_table.add({type = "label", caption = "Requested Quantity:"})
+    input_table.add({
+        type = "textfield",
+        name = "transfer-request-requested-quantity",
+        text = "1000",
+        numeric = true
+    })
+    
+    -- Add buttons
+    local button_flow = main_frame.add({
+        type = "flow",
+        direction = "horizontal"
+    })
+    
+    button_flow.add({
+        type = "button",
+        name = "add-transfer-request-button",
+        caption = "Add Request",
+        tags = {platform_index = platform.index}
+    })
+    
+    button_flow.add({
+        type = "button",
+        name = "close-transfer-request-gui",
+        caption = "Close"
+    })
+end
+
+-- Handle transfer request GUI buttons
+function SpaceShipGuis.handle_transfer_request_buttons(event)
+    local button = event.element
+    if not button then return end
+    
+    local player = game.get_player(event.player_index)
+    if not player then return end
+    
+    local TransferRequest = require("TransferRequest")
+    
+    if button.name == "add-transfer-request-button" then
+        local gui = player.gui.screen["transfer-request-gui"]
+        if not gui then return end
+        
+        local platform_index = button.tags and button.tags.platform_index
+        if not platform_index then return end
+        
+        -- Find platform
+        local platform = nil
+        for _, force in pairs(game.forces) do
+            for _, p in pairs(force.platforms) do
+                if p.valid and p.index == platform_index then
+                    platform = p
+                    break
+                end
+            end
+            if platform then break end
+        end
+        
+        if not platform then return end
+        
+        -- Get input values
+        local item_chooser = gui["choose-elem-button"]
+        local min_field = gui["textfield"]
+        local req_field = gui["textfield"][2]
+        
+        -- Search for the item chooser
+        for _, child in pairs(gui.children) do
+            if child.type == "table" then
+                for _, elem in pairs(child.children) do
+                    if elem.name == "transfer-request-item-chooser" then
+                        item_chooser = elem
+                    elseif elem.name == "transfer-request-min-quantity" then
+                        min_field = elem
+                    elseif elem.name == "transfer-request-requested-quantity" then
+                        req_field = elem
+                    end
+                end
+            end
+        end
+        
+        if not item_chooser or not item_chooser.elem_value then
+            player.print("[color=red]Please select an item[/color]")
+            return
+        end
+        
+        local item_name = item_chooser.elem_value
+        local min_quantity = tonumber(min_field.text) or 1
+        local requested_quantity = tonumber(req_field.text) or min_quantity
+        
+        if min_quantity <= 0 or requested_quantity < min_quantity then
+            player.print("[color=red]Invalid quantities. Requested must be >= minimum[/color]")
+            return
+        end
+        
+        -- Register request
+        if TransferRequest.register_request(platform, item_name, min_quantity, requested_quantity) then
+            player.print({"message.transfer-request-registered", item_name, min_quantity, requested_quantity})
+            -- Refresh GUI
+            local landing_pad = platform.surface.find_entities_filtered({name = "cargo-landing-pad", limit = 1})[1]
+            if landing_pad then
+                SpaceShipGuis.create_transfer_request_gui(player, landing_pad)
+            end
+        end
+        
+    elseif button.name == "remove-transfer-request" then
+        local platform_index = button.tags and button.tags.platform_index
+        local item_name = button.tags and button.tags.item_name
+        
+        if not platform_index or not item_name then return end
+        
+        -- Find platform
+        local platform = nil
+        for _, force in pairs(game.forces) do
+            for _, p in pairs(force.platforms) do
+                if p.valid and p.index == platform_index then
+                    platform = p
+                    break
+                end
+            end
+            if platform then break end
+        end
+        
+        if not platform then return end
+        
+        if TransferRequest.remove_request(platform, item_name) then
+            player.print({"message.transfer-request-removed", item_name})
+            -- Refresh GUI
+            local landing_pad = platform.surface.find_entities_filtered({name = "cargo-landing-pad", limit = 1})[1]
+            if landing_pad then
+                SpaceShipGuis.create_transfer_request_gui(player, landing_pad)
+            end
+        end
+        
+    elseif button.name == "close-transfer-request-gui" then
+        if player.gui.screen["transfer-request-gui"] then
+            player.gui.screen["transfer-request-gui"].destroy()
+        end
+    end
+end
+
 return SpaceShipGuis

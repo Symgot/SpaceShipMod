@@ -3,6 +3,7 @@ local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("SpaceShip")
 local Stations = require("Stations")
 local UpgradeBay = require("UpgradeBay")
+local TransferRequest = require("TransferRequest")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 
@@ -14,6 +15,7 @@ script.on_init(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
     UpgradeBay.init()
+    TransferRequest.init()
 end)
 
 -- Handle configuration changes (mod updates)
@@ -21,6 +23,7 @@ script.on_configuration_changed(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
     UpgradeBay.init()
+    TransferRequest.init()
 end)
 
 -- Get the event IDs from gui mod
@@ -98,6 +101,7 @@ script.on_configuration_changed(register_events)
 script.on_event(defines.events.on_gui_click, function(event)
     SpaceShipGuis.handle_button_click(event)
     SpaceShipGuis.handle_hub_mode_toggle(event)
+    SpaceShipGuis.handle_transfer_request_buttons(event)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
@@ -206,6 +210,14 @@ script.on_event(defines.events.on_gui_opened, function(event)
     if event.entity and event.entity.valid and event.entity.name == "space-platform-hub" then
         SpaceShipGuis.create_hub_mode_gui(player, event.entity)
     end
+    
+    -- Handle cargo landing pad opening for transfer requests
+    if event.entity and event.entity.valid and event.entity.name == "cargo-landing-pad" then
+        local surface = event.entity.surface
+        if surface and surface.platform then
+            SpaceShipGuis.create_transfer_request_gui(player, event.entity)
+        end
+    end
 end)
 
 script.on_event(defines.events.on_tick, function(event)
@@ -297,6 +309,14 @@ script.on_event(defines.events.on_tick, function(event)
             end
         end
         SpaceShip.check_automatic_behavior()
+        
+        -- Process transfer requests between platforms
+        TransferRequest.process_requests(game.tick)
+    end
+    
+    -- Periodic cleanup (every 5 minutes)
+    if game.tick % 18000 == 0 then
+        TransferRequest.cleanup()
     end
 
     -- Process pending planet drops
@@ -500,6 +520,13 @@ script.on_event(defines.events.on_gui_closed, function(event)
     if closed_entity and closed_entity.valid and closed_entity.name == "space-platform-hub" then
         if player.gui.relative["hub-mode-toggle-gui"] then
             player.gui.relative["hub-mode-toggle-gui"].destroy()
+        end
+    end
+    
+    -- Close transfer request GUI if cargo landing pad was closed
+    if closed_entity and closed_entity.valid and closed_entity.name == "cargo-landing-pad" then
+        if player.gui.screen["transfer-request-gui"] then
+            player.gui.screen["transfer-request-gui"].destroy()
         end
     end
 
