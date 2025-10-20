@@ -788,7 +788,7 @@ end
 function SpaceShip.continue_scan_ship()
     local state = storage.scan_state
     if not state or #state.tiles_to_check == 0 then
-        -- Scanning is completel
+        -- Scanning is complete
         if state then
             local temp_entities = {}
             for _, x in pairs(state.entities_on_flooring) do --check through x tables

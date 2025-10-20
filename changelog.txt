@@ -1,4 +1,29 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.2
+Date: 2025-10-20
+  Features:
+    - Replaced instant item transfers with actual cargo pod system (Space Age integration)
+    - Added multi-tick clone system to prevent UPS drops when player is not on ship
+    - Cargo pods now have 3-second (180 tick) transit time for platform-to-platform transfers
+    - Added visual effects for cargo pod arrivals at destination platforms
+  Changes:
+    - Platform transfers now use proper cargo pod mechanics instead of instant transfers
+    - Large ship cloning is now optimized to run over multiple ticks (100 tiles and 20 entities per tick)
+    - Ship cloning automatically uses multi-tick mode when player is not in cockpit
+  Improvements:
+    - Added validation to prevent automatic mode activation without port selection
+    - Implemented docking port ship limit enforcement
+    - Added takeoff surface validation check to prevent duplicate space platform creation
+    - Improved docking port limit error messages with detailed information
+  Bugfixes:
+    - Fixed spelling error in ship scanning completion message
+    - Added proper cleanup for stale cargo pods (older than 5 minutes)
+    - Improved in-transit item tracking for cargo pod system
+  Performance:
+    - Multi-tick clone system processes 100 tiles per tick (tiles stage)
+    - Multi-tick clone system processes 20 entities per tick (entities stage)
+    - Reduced UPS impact when managing multiple large ships simultaneously
+---------------------------------------------------------------------------------------------------
 Version: 0.2.1
 Date: 2025-10-19
   Changes:
