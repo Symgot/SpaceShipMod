@@ -860,4 +860,366 @@ function SpaceShipGuis.handle_transfer_request_buttons(event)
     end
 end
 
+-- =============================================================================
+-- CIRCUIT REQUEST CONTROLLER GUI
+-- =============================================================================
+
+-- Create GUI for circuit request controller
+function SpaceShipGuis.create_circuit_controller_gui(player, controller_entity)
+    if not player or not player.valid then return end
+    if not controller_entity or not controller_entity.valid then return end
+    
+    local surface = controller_entity.surface
+    if not surface or not surface.platform then return end
+    
+    local platform = surface.platform
+    local CircuitRequestController = require("CircuitRequestController")
+    
+    -- Close existing GUI if present
+    if player.gui.screen["circuit-controller-gui"] then
+        player.gui.screen["circuit-controller-gui"].destroy()
+    end
+    
+    -- Get controller data
+    local controller_data = CircuitRequestController.get_controller(controller_entity.unit_number)
+    
+    -- Create main frame
+    local main_frame = player.gui.screen.add({
+        type = "frame",
+        name = "circuit-controller-gui",
+        direction = "vertical",
+        caption = "Circuit Request Controller"
+    })
+    main_frame.auto_center = true
+    
+    -- Add info section
+    local info_flow = main_frame.add({
+        type = "flow",
+        direction = "vertical"
+    })
+    
+    info_flow.add({
+        type = "label",
+        caption = "Configure this controller to manage logistics requests via circuit signals.",
+        style = "heading_3_label"
+    })
+    
+    info_flow.add({
+        type = "label",
+        caption = "Connect red or green wires to send item signals. Signal value = requested quantity."
+    })
+    
+    -- Add current status
+    if controller_data then
+        local status_flow = main_frame.add({
+            type = "flow",
+            direction = "vertical"
+        })
+        
+        status_flow.add({
+            type = "label",
+            caption = "Status: Active",
+            style = "heading_2_label"
+        })
+        
+        local group = CircuitRequestController.get_group(controller_data.group_id)
+        if group then
+            status_flow.add({
+                type = "label",
+                caption = "Logistics Group: " .. group.name
+            })
+            
+            status_flow.add({
+                type = "label",
+                caption = "Target Planet: " .. (controller_data.target_planet or "none")
+            })
+            
+            -- Show current requests
+            if group.requests and next(group.requests) then
+                status_flow.add({
+                    type = "label",
+                    caption = "Active Requests:",
+                    style = "bold_label"
+                })
+                
+                for item_name, request in pairs(group.requests) do
+                    local req_flow = status_flow.add({
+                        type = "flow",
+                        direction = "horizontal"
+                    })
+                    
+                    req_flow.add({
+                        type = "sprite-button",
+                        sprite = "item/" .. item_name,
+                        tooltip = item_name
+                    })
+                    
+                    req_flow.add({
+                        type = "label",
+                        caption = item_name .. ": " .. request.requested_quantity
+                    })
+                end
+            else
+                status_flow.add({
+                    type = "label",
+                    caption = "No active requests (connect circuit signals)",
+                    style = "invalid_label"
+                })
+            end
+        end
+        
+        -- Add unregister button
+        main_frame.add({
+            type = "button",
+            name = "unregister-circuit-controller",
+            caption = "Unregister Controller",
+            tags = {controller_unit_number = controller_entity.unit_number}
+        })
+    else
+        -- Not configured yet, show configuration UI
+        local config_frame = main_frame.add({
+            type = "frame",
+            style = "inside_shallow_frame",
+            direction = "vertical"
+        })
+        
+        config_frame.add({
+            type = "label",
+            caption = "Configuration",
+            style = "heading_2_label"
+        })
+        
+        -- Get available groups
+        local groups = CircuitRequestController.get_platform_groups(platform)
+        
+        -- Group selection
+        local group_table = config_frame.add({
+            type = "table",
+            column_count = 2
+        })
+        
+        group_table.add({type = "label", caption = "Logistics Group:"})
+        
+        local group_dropdown_items = {"[Create New Group]"}
+        local group_id_map = {"_new_"}
+        
+        for _, group in ipairs(groups) do
+            if not group.locked then
+                table.insert(group_dropdown_items, group.name)
+                table.insert(group_id_map, group.id)
+            end
+        end
+        
+        local group_dropdown = group_table.add({
+            type = "drop-down",
+            name = "circuit-controller-group-dropdown",
+            items = group_dropdown_items,
+            selected_index = 1
+        })
+        
+        -- Store the group ID map in the GUI
+        storage.circuit_controller_group_map = storage.circuit_controller_group_map or {}
+        storage.circuit_controller_group_map[player.index] = group_id_map
+        
+        -- New group name (shown when creating new)
+        group_table.add({type = "label", caption = "New Group Name:"})
+        group_table.add({
+            type = "textfield",
+            name = "circuit-controller-new-group-name",
+            text = "Logistics Group"
+        })
+        
+        -- Planet selection
+        group_table.add({type = "label", caption = "Target Planet:"})
+        
+        -- Get list of planets
+        local planet_items = {}
+        for name, surface in pairs(game.surfaces) do
+            if surface.planet then
+                table.insert(planet_items, surface.planet.name)
+            end
+        end
+        
+        if #planet_items == 0 then
+            planet_items = {"nauvis", "vulcanus", "gleba", "fulgora", "aquilo"}
+        end
+        
+        group_table.add({
+            type = "drop-down",
+            name = "circuit-controller-planet-dropdown",
+            items = planet_items,
+            selected_index = 1
+        })
+        
+        -- Register button
+        main_frame.add({
+            type = "button",
+            name = "register-circuit-controller",
+            caption = "Register Controller",
+            tags = {
+                controller_unit_number = controller_entity.unit_number,
+                platform_index = platform.index
+            }
+        })
+    end
+    
+    -- Close button
+    main_frame.add({
+        type = "button",
+        name = "close-circuit-controller-gui",
+        caption = "Close"
+    })
+end
+
+-- Handle circuit controller GUI buttons
+function SpaceShipGuis.handle_circuit_controller_buttons(event)
+    local button = event.element
+    if not button then return end
+    
+    local player = game.get_player(event.player_index)
+    if not player then return end
+    
+    local CircuitRequestController = require("CircuitRequestController")
+    
+    if button.name == "register-circuit-controller" then
+        local gui = player.gui.screen["circuit-controller-gui"]
+        if not gui then return end
+        
+        local controller_unit_number = button.tags and button.tags.controller_unit_number
+        local platform_index = button.tags and button.tags.platform_index
+        
+        if not controller_unit_number or not platform_index then return end
+        
+        -- Find controller entity
+        local controller_entity = nil
+        for _, surface in pairs(game.surfaces) do
+            for _, entity in pairs(surface.find_entities_filtered({name = "circuit-request-controller"})) do
+                if entity.valid and entity.unit_number == controller_unit_number then
+                    controller_entity = entity
+                    break
+                end
+            end
+            if controller_entity then break end
+        end
+        
+        if not controller_entity then
+            player.print("[color=red]Controller entity not found[/color]")
+            return
+        end
+        
+        -- Find platform
+        local platform = nil
+        for _, force in pairs(game.forces) do
+            for _, p in pairs(force.platforms) do
+                if p.valid and p.index == platform_index then
+                    platform = p
+                    break
+                end
+            end
+            if platform then break end
+        end
+        
+        if not platform then
+            player.print("[color=red]Platform not found[/color]")
+            return
+        end
+        
+        -- Helper function to find GUI element by name recursively
+        local function find_element(parent, target_name)
+            if parent.name == target_name then
+                return parent
+            end
+            if parent.children then
+                for _, child in pairs(parent.children) do
+                    local found = find_element(child, target_name)
+                    if found then return found end
+                end
+            end
+            return nil
+        end
+        
+        -- Get input values
+        local group_dropdown = find_element(gui, "circuit-controller-group-dropdown")
+        local new_group_name_field = find_element(gui, "circuit-controller-new-group-name")
+        local planet_dropdown = find_element(gui, "circuit-controller-planet-dropdown")
+        
+        if not group_dropdown or not planet_dropdown then
+            player.print("[color=red]Error: Invalid GUI state[/color]")
+            return
+        end
+        
+        local selected_index = group_dropdown.selected_index
+        local group_id_map = storage.circuit_controller_group_map and storage.circuit_controller_group_map[player.index]
+        
+        if not group_id_map then
+            player.print("[color=red]Error: Group map not found[/color]")
+            return
+        end
+        
+        local group_id = group_id_map[selected_index]
+        
+        -- Create new group if needed
+        if group_id == "_new_" then
+            local new_group_name = new_group_name_field and new_group_name_field.text or "Logistics Group"
+            group_id = CircuitRequestController.create_logistics_group(platform, new_group_name)
+            
+            if not group_id then
+                player.print("[color=red]Failed to create logistics group[/color]")
+                return
+            end
+        end
+        
+        -- Get target planet
+        local target_planet = planet_dropdown.items[planet_dropdown.selected_index]
+        
+        -- Register controller
+        local success, message = CircuitRequestController.register_controller(
+            controller_entity,
+            group_id,
+            target_planet
+        )
+        
+        if success then
+            player.print({"message.circuit-controller-registered"})
+            SpaceShipGuis.create_circuit_controller_gui(player, controller_entity)
+        else
+            player.print("[color=red]" .. message .. "[/color]")
+        end
+        
+    elseif button.name == "unregister-circuit-controller" then
+        local controller_unit_number = button.tags and button.tags.controller_unit_number
+        
+        if not controller_unit_number then return end
+        
+        if CircuitRequestController.unregister_controller(controller_unit_number) then
+            player.print({"message.circuit-controller-unregistered"})
+            
+            -- Find controller entity to refresh GUI
+            local controller_entity = nil
+            for _, surface in pairs(game.surfaces) do
+                for _, entity in pairs(surface.find_entities_filtered({name = "circuit-request-controller"})) do
+                    if entity.valid and entity.unit_number == controller_unit_number then
+                        controller_entity = entity
+                        break
+                    end
+                end
+                if controller_entity then break end
+            end
+            
+            if controller_entity then
+                SpaceShipGuis.create_circuit_controller_gui(player, controller_entity)
+            else
+                if player.gui.screen["circuit-controller-gui"] then
+                    player.gui.screen["circuit-controller-gui"].destroy()
+                end
+            end
+        end
+        
+    elseif button.name == "close-circuit-controller-gui" then
+        if player.gui.screen["circuit-controller-gui"] then
+            player.gui.screen["circuit-controller-gui"].destroy()
+        end
+    end
+end
+
 return SpaceShipGuis
