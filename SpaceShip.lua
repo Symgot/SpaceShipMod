@@ -1049,6 +1049,17 @@ function SpaceShip.check_automatic_behavior()
         end
 
         if ship.own_surface or not ship.scanned then goto continue end
+        
+        -- Check if platform is in station mode (movement disabled)
+        if ship.hub and ship.hub.valid and ship.hub.surface.platform then
+            local platform = ship.hub.surface.platform
+            local Stations = require("Stations")
+            if Stations.is_station_mode(platform) then
+                -- Platform is in station mode, skip automatic movement
+                goto continue
+            end
+        end
+        
         local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
         if all_conditions_met then
             SpaceShip.clone_ship_to_space_platform(ship)
@@ -1963,6 +1974,53 @@ function SpaceShip.handle_ghost_entity(ghost, player)
             return
         end
     end
+end
+
+-- Get platform type (station/ship) from platform
+function SpaceShip.get_platform_type(platform)
+    if not platform or not platform.valid then return nil end
+    
+    -- Check tags first
+    if platform.tags and platform.tags.ship_type then
+        return platform.tags.ship_type
+    end
+    
+    -- Fallback to name-based detection
+    if string.find(platform.name, "-station") then
+        return "platform"
+    elseif string.find(platform.name, "-ship") then
+        return "ship"
+    end
+    
+    return nil
+end
+
+-- Check if transfer between platforms is allowed
+function SpaceShip.is_transfer_allowed(source_surface, dest_surface)
+    -- Get platforms from surfaces
+    local source_platform = source_surface.platform
+    local dest_platform = dest_surface.platform
+    
+    if not source_platform or not dest_platform then
+        return true -- At least one is not a platform, allow by default
+    end
+    
+    -- Check if in same orbit
+    if source_platform.space_location ~= dest_platform.space_location then
+        return false, "Platforms must be in same orbit"
+    end
+    
+    -- Get platform types
+    local source_type = SpaceShip.get_platform_type(source_platform)
+    local dest_type = SpaceShip.get_platform_type(dest_platform)
+    
+    -- Ship to Ship transfers are forbidden
+    if source_type == "ship" and dest_type == "ship" then
+        return false, {"message.transfer-ship-to-ship-forbidden"}
+    end
+    
+    -- Station↔Station and Station↔Ship are allowed
+    return true, nil
 end
 
 return SpaceShip

@@ -236,10 +236,42 @@ data:extend({
         collision_box = { { -0.4, -0.05 }, { 0.4, 0.05 } },
         selection_box = { { -0.4, -0.05 }, { 0.4, 0.05 } },
     },
+    -- Station Starter Pack
+    {
+        type = "space-platform-starter-pack",
+        name = "space-station-starter-pack",
+        localised_name = {"item-name.space-station-starter-pack"},
+        icon = "__space-age__/graphics/icons/space-platform-foundation.png",
+        subgroup = "space-rocket",
+        stack_size = 1,
+        weight = 1 * tons,
+        surface = "space-ship-surface",
+        trigger =
+        {
+            {
+                type = "direct",
+                action_delivery =
+                {
+                    type = "instant",
+                    source_effects =
+                    {
+                        {
+                            type = "create-entity",
+                            entity_name = "space-platform-hub"
+                        }
+                    }
+                }
+            }
+        },
+        tiles = make_tile_area({ { -5, -5 }, { 5, 5 } }, "space-platform-foundation"),
+        initial_items = { { type = "item", name = "space-platform-foundation", amount = 50 } },
+        create_electric_network = true,
+    },
+    -- Ship Starter Pack
     {
         type = "space-platform-starter-pack",
         name = "space-ship-starter-pack",
-        localised_name = "Space Platform Starter Pack",
+        localised_name = {"item-name.space-ship-starter-pack"},
         icon = "__space-age__/graphics/icons/thruster.png",
         subgroup = "space-rocket",
         stack_size = 1,

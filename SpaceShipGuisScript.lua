@@ -488,4 +488,99 @@ function SpaceShipGuis.gui_maker_handler(ship, player_id)
     )
 end
 
+-- Create mode toggle GUI for space platform hub
+function SpaceShipGuis.create_hub_mode_gui(player, hub_entity)
+    if not player or not player.valid then return end
+    if not hub_entity or not hub_entity.valid then return end
+    
+    local surface = hub_entity.surface
+    if not surface or not surface.platform then return end
+    
+    local platform = surface.platform
+    local Stations = require("Stations")
+    
+    -- Check platform type
+    local platform_type = platform.tags and platform.tags.ship_type or "unknown"
+    if platform_type == "unknown" then
+        return -- Only show for tagged platforms
+    end
+    
+    -- Close existing GUI if present
+    if player.gui.relative["hub-mode-toggle-gui"] then
+        player.gui.relative["hub-mode-toggle-gui"].destroy()
+    end
+    
+    -- Create GUI
+    local gui_anchor = {
+        gui = defines.relative_gui_type.space_platform_hub_gui,
+        position = defines.relative_gui_position.right,
+        name = hub_entity.name
+    }
+    
+    local main_frame = player.gui.relative.add({
+        type = "frame",
+        name = "hub-mode-toggle-gui",
+        anchor = gui_anchor,
+        direction = "vertical",
+        caption = "Platform Mode"
+    })
+    
+    local is_station_mode = Stations.is_station_mode(platform)
+    local mode_text = is_station_mode and "Station Mode (Paused)" or "Ship Mode (Mobile)"
+    local button_text = is_station_mode and "Switch to Ship Mode" or "Switch to Station Mode"
+    
+    main_frame.add({
+        type = "label",
+        caption = "Current: " .. mode_text
+    })
+    
+    main_frame.add({
+        type = "button",
+        name = "toggle-hub-mode-button",
+        caption = button_text,
+        tags = {hub_unit_number = hub_entity.unit_number}
+    })
+end
+
+-- Handle mode toggle button click
+function SpaceShipGuis.handle_hub_mode_toggle(event)
+    local button = event.element
+    if not button or button.name ~= "toggle-hub-mode-button" then return end
+    
+    local hub_unit = button.tags and button.tags.hub_unit_number
+    if not hub_unit then return end
+    
+    local player = game.get_player(event.player_index)
+    if not player then return end
+    
+    -- Find the hub entity
+    local hub = nil
+    for _, surface in pairs(game.surfaces) do
+        local hubs = surface.find_entities_filtered({
+            name = "space-platform-hub",
+            limit = 1000
+        })
+        for _, h in pairs(hubs) do
+            if h.unit_number == hub_unit then
+                hub = h
+                break
+            end
+        end
+        if hub then break end
+    end
+    
+    if not hub or not hub.valid then return end
+    if not hub.surface.platform then return end
+    
+    local platform = hub.surface.platform
+    local Stations = require("Stations")
+    
+    -- Toggle mode
+    local current_mode = Stations.is_station_mode(platform)
+    Stations.set_station_mode(platform, not current_mode)
+    
+    -- Refresh GUI
+    SpaceShipGuis.create_hub_mode_gui(player, hub)
+end
+
 return SpaceShipGuis
