@@ -587,3 +587,517 @@ end
 -- =============================================================================
 -- NOTE: Global power-armor-mk2 replacement is handled in data-final-fixes.lua
 -- =============================================================================
+
+-- =============================================================================
+-- UPGRADE BAY SYSTEM - Equipment Grids & Modules
+-- =============================================================================
+
+-- Equipment Grid Categories for different quality levels
+local upgrade_bay_grids = {
+    {
+        name = "upgrade-bay-grid-common",
+        width = 4,
+        height = 4,
+        equipment_categories = {"upgrade-module"}
+    },
+    {
+        name = "upgrade-bay-grid-uncommon",
+        width = 6,
+        height = 4,
+        equipment_categories = {"upgrade-module"}
+    },
+    {
+        name = "upgrade-bay-grid-rare",
+        width = 8,
+        height = 4,
+        equipment_categories = {"upgrade-module"}
+    },
+    {
+        name = "upgrade-bay-grid-epic",
+        width = 10,
+        height = 4,
+        equipment_categories = {"upgrade-module"}
+    },
+    {
+        name = "upgrade-bay-grid-legendary",
+        width = 12,
+        height = 4,
+        equipment_categories = {"upgrade-module"}
+    }
+}
+
+-- Create equipment category for upgrade modules
+data:extend({
+    {
+        type = "equipment-category",
+        name = "upgrade-module"
+    }
+})
+
+-- Create all equipment grids
+for _, grid in ipairs(upgrade_bay_grids) do
+    data:extend({
+        {
+            type = "equipment-grid",
+            name = grid.name,
+            width = grid.width,
+            height = grid.height,
+            equipment_categories = grid.equipment_categories
+        }
+    })
+end
+
+-- Upgrade Bay Vehicles (hidden car entities with equipment grid) - one per quality level
+local quality_names = {"common", "uncommon", "rare", "epic", "legendary"}
+local grid_names = {
+    "upgrade-bay-grid-common",
+    "upgrade-bay-grid-uncommon", 
+    "upgrade-bay-grid-rare",
+    "upgrade-bay-grid-epic",
+    "upgrade-bay-grid-legendary"
+}
+
+for i, quality in ipairs(quality_names) do
+    data:extend({
+        {
+            type = "car",
+            name = "upgrade-bay-vehicle-" .. quality,
+            flags = {"hidden", "not-on-map", "placeable-off-grid"},
+            icon = "__base__/graphics/icons/car.png",
+            icon_size = 64,
+            collision_box = {{-0.01, -0.01}, {0.01, 0.01}},
+            selection_box = {{-0.01, -0.01}, {0.01, 0.01}},
+            weight = 1,
+            braking_force = 1,
+            friction_force = 100,
+            energy_per_hit_point = 1,
+            effectivity = 0,
+            consumption = "1W",
+            rotation_speed = 0,
+            inventory_size = 0,
+            equipment_grid = grid_names[i],
+            energy_source = {type = "void"},
+            animation = {
+                layers = {
+                    {
+                        filename = "__base__/graphics/entity/car/car-1.png",
+                        priority = "low",
+                        width = 1,
+                        height = 1,
+                        frame_count = 1,
+                        direction_count = 1,
+                        scale = 0.01
+                    }
+                }
+            },
+            allow_remote_driving = false
+        }
+    })
+end
+
+-- =============================================================================
+-- EQUIPMENT MODULES - Building Capacity Modules
+-- =============================================================================
+
+-- Helper function to create equipment module
+local function create_equipment_module(params)
+    return {
+        type = "active-defense-equipment",
+        name = params.name,
+        sprite = {
+            filename = params.icon or "__base__/graphics/equipment/battery-mk2-equipment.png",
+            width = 64,
+            height = 64,
+            priority = "medium"
+        },
+        shape = {
+            width = params.width or 2,
+            height = params.height or 2,
+            type = "full"
+        },
+        energy_source = {
+            type = "void",
+            usage_priority = "secondary-input"
+        },
+        automatic = false,
+        attack_parameters = {
+            type = "projectile",
+            ammo_category = "melee",
+            cooldown = 1,
+            range = 0,
+            ammo_type = {
+                category = "melee",
+                target_type = "entity",
+                action = {
+                    type = "direct",
+                    action_delivery = {
+                        type = "instant"
+                    }
+                }
+            }
+        },
+        categories = {"upgrade-module"}
+    }
+end
+
+-- Construction Core Module (+40 total building limit, cap +200)
+data:extend({
+    create_equipment_module({
+        name = "construction-core-module",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/solar-panel-equipment.png"
+    })
+})
+
+-- Supply Core Module (+20 power/roboport/storage entities, cap +120)
+data:extend({
+    create_equipment_module({
+        name = "supply-core-module",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/battery-equipment.png"
+    })
+})
+
+-- Manufacturing Core Module (+24 machines, cap +144)
+data:extend({
+    create_equipment_module({
+        name = "manufacturing-core-module",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/energy-shield-equipment.png"
+    })
+})
+
+-- Logistics Core Module (+30 chests/belts/inserters/pipes, cap +180)
+data:extend({
+    create_equipment_module({
+        name = "logistics-core-module",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/battery-mk2-equipment.png"
+    })
+})
+
+-- Defense Core Module (+16 turrets/shields/defense, cap +96)
+data:extend({
+    create_equipment_module({
+        name = "defense-core-module",
+        width = 1,
+        height = 2,
+        icon = "__base__/graphics/equipment/personal-laser-defense-equipment.png"
+    })
+})
+
+-- =============================================================================
+-- SPECIAL EQUIPMENT MODULES
+-- =============================================================================
+
+-- Thruster Efficiency Booster (+10% thrust, cap +50%)
+data:extend({
+    create_equipment_module({
+        name = "thruster-efficiency-booster",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/exoskeleton-equipment.png"
+    })
+})
+
+-- Pod Throughput Optimizer (+10% pod transfer speed, cap +50%)
+data:extend({
+    create_equipment_module({
+        name = "pod-throughput-optimizer",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/belt-immunity-equipment.png"
+    })
+})
+
+-- Pod Payload Compressor (+5% effective payload, cap +25%)
+data:extend({
+    create_equipment_module({
+        name = "pod-payload-compressor",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/battery-mk2-equipment.png"
+    })
+})
+
+-- Docking Buffer Extension (+1 simultaneous dock, cap +3)
+data:extend({
+    create_equipment_module({
+        name = "docking-buffer-extension",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/fusion-reactor-equipment.png"
+    })
+})
+
+-- Asteroid Shield Matrix (-10% platform damage, cap -60%)
+data:extend({
+    create_equipment_module({
+        name = "asteroid-shield-matrix",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/energy-shield-mk2-equipment.png"
+    })
+})
+
+-- Signal Multiplexer (+8 virtual control signals, cap +32)
+data:extend({
+    create_equipment_module({
+        name = "signal-multiplexer",
+        width = 2,
+        height = 2,
+        icon = "__base__/graphics/equipment/night-vision-equipment.png"
+    })
+})
+
+-- =============================================================================
+-- EQUIPMENT MODULE ITEMS
+-- =============================================================================
+
+local module_items = {
+    {name = "construction-core-module", stack_size = 10},
+    {name = "supply-core-module", stack_size = 10},
+    {name = "manufacturing-core-module", stack_size = 10},
+    {name = "logistics-core-module", stack_size = 10},
+    {name = "defense-core-module", stack_size = 10},
+    {name = "thruster-efficiency-booster", stack_size = 10},
+    {name = "pod-throughput-optimizer", stack_size = 10},
+    {name = "pod-payload-compressor", stack_size = 10},
+    {name = "docking-buffer-extension", stack_size = 10},
+    {name = "asteroid-shield-matrix", stack_size = 10},
+    {name = "signal-multiplexer", stack_size = 10}
+}
+
+for _, item in ipairs(module_items) do
+    data:extend({
+        {
+            type = "item",
+            name = item.name,
+            icon = "__base__/graphics/icons/processing-unit.png",
+            icon_size = 64,
+            subgroup = "equipment",
+            order = "z[" .. item.name .. "]",
+            stack_size = item.stack_size,
+            placed_as_equipment_result = item.name
+        }
+    })
+end
+
+-- =============================================================================
+-- EQUIPMENT MODULE RECIPES
+-- =============================================================================
+
+local module_recipes = {
+    {name = "construction-core-module", ingredients = {{"iron-plate", 50}, {"copper-cable", 30}}},
+    {name = "supply-core-module", ingredients = {{"iron-plate", 50}, {"battery", 20}}},
+    {name = "manufacturing-core-module", ingredients = {{"steel-plate", 40}, {"electronic-circuit", 30}}},
+    {name = "logistics-core-module", ingredients = {{"steel-plate", 40}, {"advanced-circuit", 20}}},
+    {name = "defense-core-module", ingredients = {{"steel-plate", 30}, {"laser-turret", 5}}},
+    {name = "thruster-efficiency-booster", ingredients = {{"processing-unit", 20}, {"rocket-fuel", 10}}},
+    {name = "pod-throughput-optimizer", ingredients = {{"processing-unit", 15}, {"low-density-structure", 10}}},
+    {name = "pod-payload-compressor", ingredients = {{"processing-unit", 15}, {"battery", 20}}},
+    {name = "docking-buffer-extension", ingredients = {{"processing-unit", 25}, {"steel-plate", 50}}},
+    {name = "asteroid-shield-matrix", ingredients = {{"processing-unit", 20}, {"energy-shield-equipment", 5}}},
+    {name = "signal-multiplexer", ingredients = {{"processing-unit", 10}, {"copper-cable", 50}}}
+}
+
+for _, recipe in ipairs(module_recipes) do
+    data:extend({
+        {
+            type = "recipe",
+            name = recipe.name,
+            enabled = false,
+            energy_required = 10,
+            ingredients = recipe.ingredients,
+            results = {{type = "item", name = recipe.name, amount = 1}}
+        }
+    })
+end
+
+-- =============================================================================
+-- RESEARCH TECHNOLOGIES FOR MODULES
+-- =============================================================================
+
+-- Base upgrade bay technology (unlocked with spaceship construction)
+data:extend({
+    {
+        type = "technology",
+        name = "upgrade-bay-system",
+        icon = "__base__/graphics/technology/military.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "construction-core-module"},
+            {type = "unlock-recipe", recipe = "supply-core-module"}
+        },
+        prerequisites = {"spaceship-construction"},
+        unit = {
+            count = 500,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1}
+            },
+            time = 30
+        },
+        order = "e-g-a"
+    }
+})
+
+-- Fulgora: Pod Throughput Optimizer
+data:extend({
+    {
+        type = "technology",
+        name = "pod-throughput-optimization",
+        icon = "__base__/graphics/technology/logistic-system.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "pod-throughput-optimizer"}
+        },
+        prerequisites = {"upgrade-bay-system", "planet-discovery-fulgora"},
+        unit = {
+            count = 1000,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"electromagnetic-science-pack", 1}
+            },
+            time = 30
+        },
+        order = "e-g-b"
+    }
+})
+
+-- Vulcanus: Manufacturing Core
+data:extend({
+    {
+        type = "technology",
+        name = "advanced-manufacturing-cores",
+        icon = "__base__/graphics/technology/advanced-material-processing.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "manufacturing-core-module"}
+        },
+        prerequisites = {"upgrade-bay-system", "planet-discovery-vulcanus"},
+        unit = {
+            count = 1000,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"metallurgic-science-pack", 1}
+            },
+            time = 30
+        },
+        order = "e-g-c"
+    }
+})
+
+-- Gleba: Logistics Core
+data:extend({
+    {
+        type = "technology",
+        name = "advanced-logistics-cores",
+        icon = "__base__/graphics/technology/logistics-2.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "logistics-core-module"}
+        },
+        prerequisites = {"upgrade-bay-system", "planet-discovery-gleba"},
+        unit = {
+            count = 1000,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"agricultural-science-pack", 1}
+            },
+            time = 30
+        },
+        order = "e-g-d"
+    }
+})
+
+-- Aquilo: Asteroid Shield Matrix & Defense Core
+data:extend({
+    {
+        type = "technology",
+        name = "asteroid-defense-systems",
+        icon = "__base__/graphics/technology/laser.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "asteroid-shield-matrix"},
+            {type = "unlock-recipe", recipe = "defense-core-module"}
+        },
+        prerequisites = {"upgrade-bay-system", "planet-discovery-aquilo"},
+        unit = {
+            count = 1500,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"cryogenic-science-pack", 1}
+            },
+            time = 30
+        },
+        order = "e-g-e"
+    }
+})
+
+-- Advanced modules (require multiple planets)
+data:extend({
+    {
+        type = "technology",
+        name = "advanced-upgrade-systems",
+        icon = "__base__/graphics/technology/rocket-silo.png",
+        icon_size = 256,
+        effects = {
+            {type = "unlock-recipe", recipe = "thruster-efficiency-booster"},
+            {type = "unlock-recipe", recipe = "pod-payload-compressor"},
+            {type = "unlock-recipe", recipe = "docking-buffer-extension"},
+            {type = "unlock-recipe", recipe = "signal-multiplexer"}
+        },
+        prerequisites = {
+            "pod-throughput-optimization",
+            "advanced-manufacturing-cores",
+            "advanced-logistics-cores",
+            "asteroid-defense-systems"
+        },
+        unit = {
+            count = 2000,
+            ingredients = {
+                {"automation-science-pack", 1},
+                {"logistic-science-pack", 1},
+                {"chemical-science-pack", 1},
+                {"production-science-pack", 1},
+                {"utility-science-pack", 1},
+                {"space-science-pack", 1},
+                {"electromagnetic-science-pack", 1},
+                {"metallurgic-science-pack", 1},
+                {"agricultural-science-pack", 1},
+                {"cryogenic-science-pack", 1}
+            },
+            time = 60
+        },
+        order = "e-g-f"
+    }
+})

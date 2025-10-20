@@ -1815,6 +1815,59 @@ function SpaceShip.handle_built_entity(entity, player)
             return
         end
     end
+    
+    -- Check building capacity limits for entities on spaceship flooring
+    if entity.name ~= "spaceship-control-hub" and 
+       not string.match(entity.name, "^upgrade%-bay%-vehicle") then
+        local tile = surface.get_tile(entity.position)
+        if tile.name == "spaceship-flooring" then
+            -- Find the hub for this ship
+            local hub = nil
+            local hub_unit_number = nil
+            
+            -- Search for nearby hubs on the same surface
+            local search_area = {
+                {entity.position.x - 200, entity.position.y - 200},
+                {entity.position.x + 200, entity.position.y + 200}
+            }
+            local hubs = surface.find_entities_filtered({
+                area = search_area,
+                name = "spaceship-control-hub"
+            })
+            
+            if hubs and #hubs > 0 then
+                hub = hubs[1]
+                hub_unit_number = hub.unit_number
+                
+                -- Check capacity limits using UpgradeBay
+                local UpgradeBay = require("UpgradeBay")
+                local can_place, reason = UpgradeBay.can_place_entity(
+                    hub_unit_number,
+                    entity.type,
+                    surface,
+                    search_area
+                )
+                
+                if not can_place then
+                    local item_stack = {name = entity.name, count = 1}
+                    
+                    -- Return the entity to player inventory or spill on ground
+                    if player and player.valid then
+                        local inserted = player.insert(item_stack)
+                        if inserted == 0 then
+                            surface.spill_item_stack(entity.position, item_stack, true, player.force, false)
+                        end
+                        player.print("[color=red]Cannot place entity: " .. reason .. "[/color]")
+                    else
+                        surface.spill_item_stack(entity.position, item_stack, true, entity.force, false)
+                    end
+                    
+                    entity.destroy()
+                    return
+                end
+            end
+        end
+    end
 
     -- Spawn the car on the spaceship controller:
     if entity.name == "spaceship-control-hub" then
@@ -1985,51 +2038,57 @@ function SpaceShip.handle_ghost_entity(ghost, player)
     end
 end
 
--- Get platform type (station/ship) from platform
-function SpaceShip.get_platform_type(platform)
-    if not platform or not platform.valid then return nil end
-    
-    -- Check tags first
-    if platform.tags and platform.tags.ship_type then
-        return platform.tags.ship_type
+-- =============================================================================
+-- UPGRADE BAY INTEGRATION
+-- =============================================================================
+
+-- Get upgrade bay effects for a ship's hub
+function SpaceShip.get_upgrade_effects(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return nil
     end
     
-    -- Fallback to name-based detection
-    if string.find(platform.name, "-station") then
-        return "platform"
-    elseif string.find(platform.name, "-ship") then
-        return "ship"
-    end
-    
-    return nil
+    local UpgradeBay = require("UpgradeBay")
+    return UpgradeBay.calculate_effects(ship.hub.unit_number)
 end
 
--- Check if transfer between platforms is allowed
-function SpaceShip.is_transfer_allowed(source_surface, dest_surface)
-    -- Get platforms from surfaces
-    local source_platform = source_surface.platform
-    local dest_platform = dest_surface.platform
-    
-    if not source_platform or not dest_platform then
-        return true -- At least one is not a platform, allow by default
+-- Apply thruster efficiency bonus to platform
+function SpaceShip.apply_thruster_efficiency(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return 1.0
     end
     
-    -- Check if in same orbit
-    if source_platform.space_location ~= dest_platform.space_location then
-        return false, "Platforms must be in same orbit"
+    local UpgradeBay = require("UpgradeBay")
+    local bonus = UpgradeBay.get_thruster_efficiency_bonus(ship.hub.unit_number)
+    return 1.0 + bonus
+end
+
+-- Get capacity information for circuit output
+function SpaceShip.get_capacity_signals(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return {}
     end
     
-    -- Get platform types
-    local source_type = SpaceShip.get_platform_type(source_platform)
-    local dest_type = SpaceShip.get_platform_type(dest_platform)
+    local UpgradeBay = require("UpgradeBay")
+    local hub_unit = ship.hub.unit_number
     
-    -- Ship to Ship transfers are forbidden
-    if source_type == "ship" and dest_type == "ship" then
-        return false, {"message.transfer-ship-to-ship-forbidden"}
+    local signals = {}
+    
+    -- Add capacity signals
+    signals["signal-T"] = UpgradeBay.get_total_capacity(hub_unit)  -- Total capacity
+    signals["signal-E"] = UpgradeBay.get_category_capacity(hub_unit, "energy")  -- Energy capacity
+    signals["signal-M"] = UpgradeBay.get_category_capacity(hub_unit, "machine")  -- Machine capacity
+    signals["signal-L"] = UpgradeBay.get_category_capacity(hub_unit, "logistics")  -- Logistics capacity
+    signals["signal-D"] = UpgradeBay.get_category_capacity(hub_unit, "defense")  -- Defense capacity
+    
+    -- Add special module bonuses
+    local effects = UpgradeBay.calculate_effects(hub_unit)
+    if effects then
+        signals["signal-P"] = math.floor(effects.pod_throughput * 100)  -- Pod throughput as percentage
+        signals["signal-S"] = math.floor(effects.asteroid_shield * 100)  -- Shield reduction as percentage
     end
     
-    -- Station↔Station and Station↔Ship are allowed
-    return true, nil
+    return signals
 end
 
 return SpaceShip

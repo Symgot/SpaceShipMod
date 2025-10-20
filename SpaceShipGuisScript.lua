@@ -257,6 +257,7 @@ function SpaceShipGuis.create_spaceship_gui(player, ship)
     custom_gui.add { type = "button", name = "ship-takeoff", caption = "Takeoff", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "drop-player-to-planet", caption = "Drop player to Planet", tags = { ship = ship_tag_number } }
     custom_gui.add { type = "button", name = "drop-items-to-planet", caption = "Drop items to Planet", tags = { ship = ship_tag_number } }
+    custom_gui.add { type = "button", name = "open-upgrade-bay", caption = "Open Upgrade Bay", tags = { ship = ship_tag_number, hub_unit_number = ship.hub.unit_number } }
 end
 
 -- Function to close the spaceship control GUI
@@ -318,6 +319,15 @@ function SpaceShipGuis.handle_button_click(event)
         game.print("dropping items to planet")
         local ship = storage.spaceships[event.element.tags.ship]
         SpaceShip.drop_items_to_planet(ship)
+    elseif button_name == "open-upgrade-bay" then
+        game.print("Opening upgrade bay...")
+        local hub_unit_number = event.element.tags.hub_unit_number
+        if hub_unit_number then
+            local UpgradeBay = require("UpgradeBay")
+            UpgradeBay.open_gui(player, hub_unit_number)
+        else
+            player.print("[color=red]Upgrade bay not found![/color]")
+        end
     else
         game.print("Unknown button clicked: " .. button_name)
     end
