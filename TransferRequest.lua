@@ -69,14 +69,12 @@ local function get_platforms_in_same_orbit(platform)
 end
 
 -- Check if transfer is allowed between two platforms based on type
--- This respects SpaceShip mod transfer restrictions if the mod is loaded
+-- This respects SpaceShip mod transfer restrictions
 local function is_transfer_allowed(source_platform, dest_platform)
-    -- Check if SpaceShip mod is loaded and has transfer validation
-    if script.active_mods["SpaceShipMod"] then
-        local SpaceShip = require("SpaceShip")
-        if SpaceShip.is_transfer_allowed then
-            return SpaceShip.is_transfer_allowed(source_platform.surface, dest_platform.surface)
-        end
+    -- Use Stations module for transfer validation (compatible with SpaceShip mod)
+    local Stations = require("Stations")
+    if Stations and Stations.validate_transfer then
+        return Stations.validate_transfer(source_platform, dest_platform)
     end
     
     -- Default behavior: allow all transfers between platforms in same orbit

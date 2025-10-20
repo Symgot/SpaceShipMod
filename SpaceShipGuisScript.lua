@@ -776,28 +776,32 @@ function SpaceShipGuis.handle_transfer_request_buttons(event)
         
         if not platform then return end
         
-        -- Get input values
-        local item_chooser = gui["choose-elem-button"]
-        local min_field = gui["textfield"]
-        local req_field = gui["textfield"][2]
-        
-        -- Search for the item chooser
-        for _, child in pairs(gui.children) do
-            if child.type == "table" then
-                for _, elem in pairs(child.children) do
-                    if elem.name == "transfer-request-item-chooser" then
-                        item_chooser = elem
-                    elseif elem.name == "transfer-request-min-quantity" then
-                        min_field = elem
-                    elseif elem.name == "transfer-request-requested-quantity" then
-                        req_field = elem
-                    end
+        -- Helper function to find GUI element by name recursively
+        local function find_element(parent, target_name)
+            if parent.name == target_name then
+                return parent
+            end
+            if parent.children then
+                for _, child in pairs(parent.children) do
+                    local found = find_element(child, target_name)
+                    if found then return found end
                 end
             end
+            return nil
         end
+        
+        -- Get input values
+        local item_chooser = find_element(gui, "transfer-request-item-chooser")
+        local min_field = find_element(gui, "transfer-request-min-quantity")
+        local req_field = find_element(gui, "transfer-request-requested-quantity")
         
         if not item_chooser or not item_chooser.elem_value then
             player.print("[color=red]Please select an item[/color]")
+            return
+        end
+        
+        if not min_field or not req_field then
+            player.print("[color=red]Error: Invalid GUI state[/color]")
             return
         end
         
