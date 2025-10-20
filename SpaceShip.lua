@@ -550,7 +550,10 @@ function SpaceShip.start_multi_tick_clone(ship, dest_surface, dest_center, exclu
         max_y = max_y,
         stage = "tiles", -- tiles -> entities -> cleanup -> scan
         entities_per_tick = 20, -- Clone 20 entities per tick to avoid UPS drops
-        tiles_per_tick = 100 -- Set 100 tiles per tick
+        tiles_per_tick = 100, -- Set 100 tiles per tick
+        tiles_index = 1, -- Track current position in tiles array
+        entities_index = 1, -- Track current position in entities array
+        destroy_index = 1 -- Track current position in destroy array
     }
     
     game.print("Multi-tick clone initiated. This may take several ticks.")
@@ -569,24 +572,27 @@ function SpaceShip.continue_multi_tick_clone()
     end
     
     if state.stage == "tiles" then
-        -- Set tiles in batches
-        if #state.tiles_to_set > 0 then
+        -- Set tiles in batches using index
+        if state.tiles_index <= #state.tiles_to_set then
             local batch = {}
-            for i = 1, math.min(state.tiles_per_tick, #state.tiles_to_set) do
-                table.insert(batch, table.remove(state.tiles_to_set, 1))
+            local end_index = math.min(state.tiles_index + state.tiles_per_tick - 1, #state.tiles_to_set)
+            for i = state.tiles_index, end_index do
+                table.insert(batch, state.tiles_to_set[i])
             end
             state.dest_surface.set_tiles(batch)
+            state.tiles_index = end_index + 1
         else
             -- Tiles done, move to entities stage
             state.stage = "entities"
             game.print("Tiles cloned, now cloning entities...")
         end
     elseif state.stage == "entities" then
-        -- Clone entities in batches
-        if #state.entities_to_clone > 0 then
+        -- Clone entities in batches using index
+        if state.entities_index <= #state.entities_to_clone then
             local batch = {}
-            for i = 1, math.min(state.entities_per_tick, #state.entities_to_clone) do
-                table.insert(batch, table.remove(state.entities_to_clone, 1))
+            local end_index = math.min(state.entities_index + state.entities_per_tick - 1, #state.entities_to_clone)
+            for i = state.entities_index, end_index do
+                table.insert(batch, state.entities_to_clone[i])
             end
             
             state.src_surface.clone_entities({
@@ -595,21 +601,23 @@ function SpaceShip.continue_multi_tick_clone()
                 destination_offset = state.offset,
                 snap_to_grid = true
             })
+            state.entities_index = end_index + 1
         else
             -- Entities cloned, move to cleanup stage
             state.stage = "cleanup"
             game.print("Entities cloned, cleaning up old ship...")
         end
     elseif state.stage == "cleanup" then
-        -- Destroy old entities in batches
-        if #state.entities_to_destroy > 0 then
+        -- Destroy old entities in batches using index
+        if state.destroy_index <= #state.entities_to_destroy then
             local batch_count = 0
-            while batch_count < 20 and #state.entities_to_destroy > 0 do
-                local entity = table.remove(state.entities_to_destroy, 1)
+            while batch_count < 20 and state.destroy_index <= #state.entities_to_destroy do
+                local entity = state.entities_to_destroy[state.destroy_index]
                 if entity and entity.valid then
                     entity.destroy()
-                    batch_count = batch_count + 1
                 end
+                batch_count = batch_count + 1
+                state.destroy_index = state.destroy_index + 1
             end
         else
             -- Cleanup done, restore hidden tiles and finish
@@ -647,7 +655,7 @@ end
 
 function SpaceShip.clone_ship_to_space_platform(ship)
     if not ship or not ship.player or not ship.player.valid then
-        ship.game.print("Error: Invalid player.")
+        game.print("Error: Invalid player.")
         return
     end
 
