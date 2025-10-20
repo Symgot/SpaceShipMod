@@ -1846,7 +1846,7 @@ function SpaceShip.handle_built_entity(entity, player)
         local platform = entity.surface.platform
         local platform_type = SpaceShip.get_platform_type(platform)
         if platform_type == "ship" and player and player.valid then
-            player.print("[color=yellow]Transfer Rule: Ship-to-Ship cargo transfers are forbidden. Only Station↔Station and Station↔Ship transfers are allowed.[/color]")
+            player.print({"message.transfer-ship-to-ship-forbidden"})
         end
     end
 
