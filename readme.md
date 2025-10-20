@@ -68,6 +68,28 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 
 ## Advanced Features
 
+### Upgrade Bay System
+- **Quality-Based Capacity**: Ships have base building limits based on hub quality (Common: 150, Uncommon: 200, Rare: 260, Epic: 330, Legendary: 410)
+- **Equipment Grid**: Each hub has an upgrade bay with equipment slots (16/24/32/40/48 based on quality)
+- **Capacity Modules**:
+  - Construction Core: +40 total building capacity (cap: +200)
+  - Supply Core: +20 energy/storage capacity (cap: +120)
+  - Manufacturing Core: +24 machine capacity (cap: +144)
+  - Logistics Core: +30 logistics capacity (cap: +180)
+  - Defense Core: +16 defense capacity (cap: +96)
+- **Special Modules**:
+  - Thruster Efficiency Booster: +10% thrust per module (cap: +50%)
+  - Pod Throughput Optimizer: +10% pod transfer speed (cap: +50%)
+  - Pod Payload Compressor: +5% effective payload (cap: +25%)
+  - Docking Buffer Extension: +1 simultaneous dock (cap: +3)
+  - Asteroid Shield Matrix: -10% platform damage (cap: -60%)
+  - Signal Multiplexer: +8 virtual control signals (cap: +32)
+- **Planet-Based Progression**: Modules unlock through planet discovery technologies
+  - Fulgora: Pod Throughput Optimizer
+  - Vulcanus: Manufacturing Core
+  - Gleba: Logistics Core
+  - Aquilo: Asteroid Shield Matrix & Defense Core
+
 ### Circuit Network Integration
 - Connect control hubs to circuit networks
 - Use signals to control ship automation

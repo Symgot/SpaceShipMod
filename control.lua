@@ -2,6 +2,7 @@ local SpaceShipGuis = require("SpaceShipGuisScript")
 local SpaceShipFunctions = require("SpaceShipFunctionsScript")
 local SpaceShip = require("SpaceShip")
 local Stations = require("Stations")
+local UpgradeBay = require("UpgradeBay")
 local schedule_gui = require("__ship-gui__.spaceship_gui.spaceship_gui")
 
 
@@ -12,12 +13,14 @@ storage.highlight_data = storage.highlight_data or {} -- Stores highlight data f
 script.on_init(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
+    UpgradeBay.init()
 end)
 
 -- Handle configuration changes (mod updates)
 script.on_configuration_changed(function()
     storage.highlight_data = storage.highlight_data or {}
     Stations.init()
+    UpgradeBay.init()
 end)
 
 -- Get the event IDs from gui mod
@@ -103,6 +106,11 @@ script.on_event(defines.events.on_built_entity, function(event)
         SpaceShip.handle_ghost_entity(event.entity, player)
     else
         SpaceShip.handle_built_entity(event.entity, player)
+        
+        -- Create upgrade bay for spaceship control hub
+        if event.entity.name == "spaceship-control-hub" and event.entity.valid then
+            UpgradeBay.create_for_hub(event.entity)
+        end
     end
 end)
 
@@ -116,6 +124,11 @@ script.on_event(defines.events.on_robot_built_entity, function(event)
         end
     end
     SpaceShip.handle_built_entity(event.entity, player)
+    
+    -- Create upgrade bay for spaceship control hub
+    if event.entity.name == "spaceship-control-hub" and event.entity.valid then
+        UpgradeBay.create_for_hub(event.entity)
+    end
 end)
 
 script.on_event(defines.events.on_space_platform_built_entity, function(event)
@@ -128,17 +141,34 @@ script.on_event(defines.events.on_space_platform_built_entity, function(event)
         end
     end
     SpaceShip.handle_built_entity(event.entity, player)
+    
+    -- Create upgrade bay for spaceship control hub
+    if event.entity.name == "spaceship-control-hub" and event.entity.valid then
+        UpgradeBay.create_for_hub(event.entity)
+    end
 end)
 
 script.on_event(defines.events.on_player_mined_entity, function(event)
+    -- Destroy upgrade bay when hub is mined
+    if event.entity.name == "spaceship-control-hub" then
+        UpgradeBay.destroy_for_hub(event.entity.unit_number)
+    end
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_robot_mined_entity, function(event)
+    -- Destroy upgrade bay when hub is mined
+    if event.entity.name == "spaceship-control-hub" then
+        UpgradeBay.destroy_for_hub(event.entity.unit_number)
+    end
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
 script.on_event(defines.events.on_space_platform_mined_entity, function(event)
+    -- Destroy upgrade bay when hub is mined
+    if event.entity.name == "spaceship-control-hub" then
+        UpgradeBay.destroy_for_hub(event.entity.unit_number)
+    end
     SpaceShip.handle_mined_entity(event.entity)
 end)
 

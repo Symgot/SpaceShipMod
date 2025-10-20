@@ -1804,6 +1804,59 @@ function SpaceShip.handle_built_entity(entity, player)
             return
         end
     end
+    
+    -- Check building capacity limits for entities on spaceship flooring
+    if entity.name ~= "spaceship-control-hub" and 
+       not string.match(entity.name, "^upgrade%-bay%-vehicle") then
+        local tile = surface.get_tile(entity.position)
+        if tile.name == "spaceship-flooring" then
+            -- Find the hub for this ship
+            local hub = nil
+            local hub_unit_number = nil
+            
+            -- Search for nearby hubs on the same surface
+            local search_area = {
+                {entity.position.x - 200, entity.position.y - 200},
+                {entity.position.x + 200, entity.position.y + 200}
+            }
+            local hubs = surface.find_entities_filtered({
+                area = search_area,
+                name = "spaceship-control-hub"
+            })
+            
+            if hubs and #hubs > 0 then
+                hub = hubs[1]
+                hub_unit_number = hub.unit_number
+                
+                -- Check capacity limits using UpgradeBay
+                local UpgradeBay = require("UpgradeBay")
+                local can_place, reason = UpgradeBay.can_place_entity(
+                    hub_unit_number,
+                    entity.type,
+                    surface,
+                    search_area
+                )
+                
+                if not can_place then
+                    local item_stack = {name = entity.name, count = 1}
+                    
+                    -- Return the entity to player inventory or spill on ground
+                    if player and player.valid then
+                        local inserted = player.insert(item_stack)
+                        if inserted == 0 then
+                            surface.spill_item_stack(entity.position, item_stack, true, player.force, false)
+                        end
+                        player.print("[color=red]Cannot place entity: " .. reason .. "[/color]")
+                    else
+                        surface.spill_item_stack(entity.position, item_stack, true, entity.force, false)
+                    end
+                    
+                    entity.destroy()
+                    return
+                end
+            end
+        end
+    end
 
     -- Spawn the car on the spaceship controller:
     if entity.name == "spaceship-control-hub" then
@@ -1963,6 +2016,59 @@ function SpaceShip.handle_ghost_entity(ghost, player)
             return
         end
     end
+end
+
+-- =============================================================================
+-- UPGRADE BAY INTEGRATION
+-- =============================================================================
+
+-- Get upgrade bay effects for a ship's hub
+function SpaceShip.get_upgrade_effects(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return nil
+    end
+    
+    local UpgradeBay = require("UpgradeBay")
+    return UpgradeBay.calculate_effects(ship.hub.unit_number)
+end
+
+-- Apply thruster efficiency bonus to platform
+function SpaceShip.apply_thruster_efficiency(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return 1.0
+    end
+    
+    local UpgradeBay = require("UpgradeBay")
+    local bonus = UpgradeBay.get_thruster_efficiency_bonus(ship.hub.unit_number)
+    return 1.0 + bonus
+end
+
+-- Get capacity information for circuit output
+function SpaceShip.get_capacity_signals(ship)
+    if not ship or not ship.hub or not ship.hub.valid then
+        return {}
+    end
+    
+    local UpgradeBay = require("UpgradeBay")
+    local hub_unit = ship.hub.unit_number
+    
+    local signals = {}
+    
+    -- Add capacity signals
+    signals["signal-T"] = UpgradeBay.get_total_capacity(hub_unit)  -- Total capacity
+    signals["signal-E"] = UpgradeBay.get_category_capacity(hub_unit, "energy")  -- Energy capacity
+    signals["signal-M"] = UpgradeBay.get_category_capacity(hub_unit, "machine")  -- Machine capacity
+    signals["signal-L"] = UpgradeBay.get_category_capacity(hub_unit, "logistics")  -- Logistics capacity
+    signals["signal-D"] = UpgradeBay.get_category_capacity(hub_unit, "defense")  -- Defense capacity
+    
+    -- Add special module bonuses
+    local effects = UpgradeBay.calculate_effects(hub_unit)
+    if effects then
+        signals["signal-P"] = math.floor(effects.pod_throughput * 100)  -- Pod throughput as percentage
+        signals["signal-S"] = math.floor(effects.asteroid_shield * 100)  -- Shield reduction as percentage
+    end
+    
+    return signals
 end
 
 return SpaceShip
