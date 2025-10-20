@@ -16,6 +16,10 @@
 
 local CircuitRequestController = {}
 
+-- Constants for configuration
+local RED_WIRE_ID = 1  -- Red circuit network ID
+local GREEN_WIRE_ID = 2  -- Green circuit network ID
+
 -- Initialize storage for the module
 function CircuitRequestController.init()
     storage.circuit_controllers = storage.circuit_controllers or {} -- Maps controller unit_number to controller data
@@ -259,8 +263,8 @@ function CircuitRequestController.process_controllers(current_tick)
             table.insert(controllers_to_remove, unit_number)
         else
             -- Read circuit signals
-            local red_network = controller.entity.get_circuit_network(1)
-            local green_network = controller.entity.get_circuit_network(2)
+            local red_network = controller.entity.get_circuit_network(RED_WIRE_ID)
+            local green_network = controller.entity.get_circuit_network(GREEN_WIRE_ID)
             
             local signals = {}
             
