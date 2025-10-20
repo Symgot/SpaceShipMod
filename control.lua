@@ -296,6 +296,11 @@ script.on_event(defines.events.on_tick, function(event)
     if storage.scan_state and game.tick % 10 == storage.scan_state.tick_amount then
         SpaceShip.continue_scan_ship()
     end
+    
+    -- Process multi-tick clone operations
+    if storage.clone_state and game.tick % 1 == 0 then
+        SpaceShip.continue_multi_tick_clone()
+    end
 
     if game.tick % 60 == 0 then
         for _, ship in pairs(storage.spaceships or {}) do
