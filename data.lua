@@ -615,32 +615,42 @@ for _, grid in ipairs(upgrade_bay_grids) do
     })
 end
 
--- Upgrade Bay Spider Vehicle (hidden entity with equipment grid)
-data:extend({
-    {
-        type = "spider-vehicle",
-        name = "upgrade-bay-vehicle",
-        flags = {"hidden", "not-on-map", "placeable-off-grid"},
-        icon = "__base__/graphics/icons/spidertron.png",
-        icon_size = 64,
-        collision_box = {{-0.01, -0.01}, {0.01, 0.01}},
-        selection_box = {{-0.01, -0.01}, {0.01, 0.01}},
-        height = 0.1,
-        weight = 1,
-        braking_force = 1,
-        friction_force = 1,
-        energy_per_hit_point = 1,
-        equipment_grid = "upgrade-bay-grid-common",
-        energy_source = {type = "void"},
-        movement_energy_consumption = "1W",
-        automatic_weapon_cycling = false,
-        chain_shooting_cooldown_modifier = 1,
-        chunk_exploration_radius = 0,
-        graphics_set = {
-            base_animation = {
+-- Upgrade Bay Vehicles (hidden car entities with equipment grid) - one per quality level
+local quality_names = {"common", "uncommon", "rare", "epic", "legendary"}
+local grid_names = {
+    "upgrade-bay-grid-common",
+    "upgrade-bay-grid-uncommon", 
+    "upgrade-bay-grid-rare",
+    "upgrade-bay-grid-epic",
+    "upgrade-bay-grid-legendary"
+}
+
+for i, quality in ipairs(quality_names) do
+    data:extend({
+        {
+            type = "car",
+            name = "upgrade-bay-vehicle-" .. quality,
+            flags = {"hidden", "not-on-map", "placeable-off-grid"},
+            icon = "__base__/graphics/icons/car.png",
+            icon_size = 64,
+            collision_box = {{-0.01, -0.01}, {0.01, 0.01}},
+            selection_box = {{-0.01, -0.01}, {0.01, 0.01}},
+            weight = 1,
+            braking_force = 1,
+            friction_force = 100,
+            energy_per_hit_point = 1,
+            effectivity = 0,
+            consumption = "1W",
+            rotation_speed = 0,
+            inventory_size = 0,
+            equipment_grid = grid_names[i],
+            energy_source = {type = "void"},
+            burner = nil,
+            animation = {
                 layers = {
                     {
-                        filename = "__base__/graphics/entity/spidertron/spidertron-body-bottom.png",
+                        filename = "__base__/graphics/entity/car/car-1.png",
+                        priority = "low",
                         width = 1,
                         height = 1,
                         frame_count = 1,
@@ -648,14 +658,11 @@ data:extend({
                         scale = 0.01
                     }
                 }
-            }
-        },
-        spider_engine = {
-            legs = {},
-            military_target = "spidertron-military-target"
+            },
+            allow_remote_driving = false
         }
-    }
-})
+    })
+end
 
 -- =============================================================================
 -- EQUIPMENT MODULES - Building Capacity Modules

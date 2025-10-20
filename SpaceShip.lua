@@ -1806,7 +1806,8 @@ function SpaceShip.handle_built_entity(entity, player)
     end
     
     -- Check building capacity limits for entities on spaceship flooring
-    if entity.name ~= "spaceship-control-hub" and entity.name ~= "upgrade-bay-vehicle" then
+    if entity.name ~= "spaceship-control-hub" and 
+       not string.match(entity.name, "^upgrade%-bay%-vehicle") then
         local tile = surface.get_tile(entity.position)
         if tile.name == "spaceship-flooring" then
             -- Find the hub for this ship

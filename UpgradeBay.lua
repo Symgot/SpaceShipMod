@@ -131,9 +131,20 @@ function UpgradeBay.create_for_hub(hub_entity)
         quality = hub_entity.quality.name
     end
     
+    -- Map quality to vehicle name
+    local quality_to_vehicle = {
+        ["normal"] = "upgrade-bay-vehicle-common",
+        ["uncommon"] = "upgrade-bay-vehicle-uncommon",
+        ["rare"] = "upgrade-bay-vehicle-rare",
+        ["epic"] = "upgrade-bay-vehicle-epic",
+        ["legendary"] = "upgrade-bay-vehicle-legendary"
+    }
+    
+    local vehicle_name = quality_to_vehicle[quality] or "upgrade-bay-vehicle-common"
+    
     -- Create the upgrade bay vehicle near the hub (hidden)
     local upgrade_bay = hub_entity.surface.create_entity({
-        name = "upgrade-bay-vehicle",
+        name = vehicle_name,
         position = hub_entity.position,
         force = hub_entity.force,
         create_build_effect_smoke = false
@@ -144,9 +155,8 @@ function UpgradeBay.create_for_hub(hub_entity)
         return nil
     end
     
-    -- Set the appropriate equipment grid based on quality
+    -- Get the grid name for this quality
     local grid_name = UpgradeBay.GRID_BY_QUALITY[quality] or "upgrade-bay-grid-common"
-    upgrade_bay.grid.set_contents({})  -- Clear default grid
     
     -- Store the upgrade bay data
     storage.upgrade_bays = storage.upgrade_bays or {}
@@ -287,7 +297,7 @@ function UpgradeBay.count_entities_by_category(surface, area)
     
     local entities = surface.find_entities(area)
     for _, entity in pairs(entities) do
-        if entity.valid and entity.name ~= "upgrade-bay-vehicle" then
+        if entity.valid and not string.match(entity.name, "^upgrade%-bay%-vehicle") then
             counts.total = counts.total + 1
             
             local categorized = false
