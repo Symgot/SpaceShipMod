@@ -4,6 +4,18 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 
 ## Features
 
+### Platform Types & Mode Management
+- **Two Platform Types**: Create either Space Stations (stationary platforms) or Ships (mobile platforms)
+- **Mode Toggle**: Switch between Station Mode and Ship Mode at the space platform hub
+  - **Station Mode**: Platform is paused, thrusters are ineffective, no movement possible
+  - **Ship Mode**: Platform can move via schedules and docking operations
+- **Transfer Rules**: Validation functions for cargo transfers within the same orbit:
+  - ✅ Station ↔ Station transfers allowed
+  - ✅ Station ↔ Ship transfers allowed
+  - ❌ Ship ↔ Ship transfers forbidden
+  - API: Use `SpaceShip.is_transfer_allowed(source_surface, dest_surface)` or `Stations.validate_transfer(source_platform, dest_platform)` for manual validation
+- **Circuit Network Control**: Full monitoring and control via circuit network signals (built into Factorio)
+
 ### Custom Spaceship Construction
 - **Spaceship Flooring**: Special tiles that define your ship's structure
 - **Control Hub**: Central command center for ship operations
@@ -48,6 +60,20 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 4. Install the required Ship GUI dependency mod
 
 ## Getting Started
+
+### Creating Platforms
+1. **Launch a Station**: Use the "Space Station (Platform)" starter pack to create a stationary platform
+   - Automatically placed in Station Mode (paused)
+   - One station allowed per planet per force
+2. **Launch a Ship**: Use the "Ship" starter pack to create a mobile platform
+   - Starts in Ship Mode (can move)
+   - Multiple ships allowed
+
+### Mode Toggle
+1. **Open Space Platform Hub**: Click on the standard space platform hub entity
+2. **Toggle Mode**: Use the mode toggle button to switch between Station and Ship modes
+3. **Station Mode**: Platform cannot move, thrusters have no effect (useful for stationary bases)
+4. **Ship Mode**: Platform can follow schedules and move between locations
 
 ### Basic Ship Construction
 1. **Place Spaceship Flooring**: Define your ship's area with spaceship flooring tiles

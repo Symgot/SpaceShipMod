@@ -1049,6 +1049,17 @@ function SpaceShip.check_automatic_behavior()
         end
 
         if ship.own_surface or not ship.scanned then goto continue end
+        
+        -- Check if platform is in station mode (movement disabled)
+        if ship.hub and ship.hub.valid and ship.hub.surface.platform then
+            local platform = ship.hub.surface.platform
+            local Stations = require("Stations")
+            if Stations.is_station_mode(platform) then
+                -- Platform is in station mode, skip automatic movement
+                goto continue
+            end
+        end
+        
         local all_conditions_met = SpaceShip.check_schedule_conditions(ship)
         if all_conditions_met then
             SpaceShip.clone_ship_to_space_platform(ship)
@@ -1881,6 +1892,15 @@ function SpaceShip.handle_built_entity(entity, player)
     end
     if entity.name == "spaceship-docking-port" then
         SpaceShip.register_docking_port(entity)
+    end
+    
+    -- Warn about transfer rules when cargo landing pads are placed
+    if entity.name == "cargo-landing-pad" and entity.surface.platform then
+        local platform = entity.surface.platform
+        local platform_type = SpaceShip.get_platform_type(platform)
+        if platform_type == "ship" and player and player.valid then
+            player.print({"message.transfer-ship-to-ship-forbidden"})
+        end
     end
 
     -- If built on a spaceship tile, mark scanned as false

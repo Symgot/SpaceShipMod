@@ -97,6 +97,7 @@ script.on_configuration_changed(register_events)
 
 script.on_event(defines.events.on_gui_click, function(event)
     SpaceShipGuis.handle_button_click(event)
+    SpaceShipGuis.handle_hub_mode_toggle(event)
 end)
 
 script.on_event(defines.events.on_built_entity, function(event)
@@ -199,6 +200,11 @@ script.on_event(defines.events.on_gui_opened, function(event)
         end
         -- Open our custom GUI
         SpaceShipGuis.create_docking_port_gui(player, event.entity)
+    end
+    
+    -- Handle space platform hub opening for mode toggle
+    if event.entity and event.entity.valid and event.entity.name == "space-platform-hub" then
+        SpaceShipGuis.create_hub_mode_gui(player, event.entity)
     end
 end)
 
@@ -487,6 +493,13 @@ script.on_event(defines.events.on_gui_closed, function(event)
     if closed_entity and closed_entity.valid and closed_entity.name == "spaceship-docking-port" then
         if player.gui.screen["docking-port-gui"] then
             player.gui.screen["docking-port-gui"].destroy()
+        end
+    end
+    
+    -- Close hub mode toggle GUI if space platform hub was closed
+    if closed_entity and closed_entity.valid and closed_entity.name == "space-platform-hub" then
+        if player.gui.relative["hub-mode-toggle-gui"] then
+            player.gui.relative["hub-mode-toggle-gui"].destroy()
         end
     end
 
