@@ -162,6 +162,10 @@ script.on_event(defines.events.on_player_mined_entity, function(event)
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
     end
+    -- Unregister circuit controller when mined
+    if event.entity.name == "circuit-request-controller" then
+        CircuitRequestController.unregister_controller(event.entity.unit_number)
+    end
     SpaceShip.handle_mined_entity(event.entity)
 end)
 
@@ -169,6 +173,10 @@ script.on_event(defines.events.on_robot_mined_entity, function(event)
     -- Destroy upgrade bay when hub is mined
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
+    end
+    -- Unregister circuit controller when mined
+    if event.entity.name == "circuit-request-controller" then
+        CircuitRequestController.unregister_controller(event.entity.unit_number)
     end
     SpaceShip.handle_mined_entity(event.entity)
 end)
@@ -178,7 +186,18 @@ script.on_event(defines.events.on_space_platform_mined_entity, function(event)
     if event.entity.name == "spaceship-control-hub" then
         UpgradeBay.destroy_for_hub(event.entity.unit_number)
     end
+    -- Unregister circuit controller when mined
+    if event.entity.name == "circuit-request-controller" then
+        CircuitRequestController.unregister_controller(event.entity.unit_number)
+    end
     SpaceShip.handle_mined_entity(event.entity)
+end)
+
+script.on_event(defines.events.on_entity_died, function(event)
+    -- Unregister circuit controller when destroyed
+    if event.entity and event.entity.valid and event.entity.name == "circuit-request-controller" then
+        CircuitRequestController.unregister_controller(event.entity.unit_number)
+    end
 end)
 
 script.on_event(defines.events.on_gui_opened, function(event)

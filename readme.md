@@ -21,6 +21,12 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
 - **Request Management**: Configure transfer requests via cargo landing pad GUI
   - Set minimum quantity threshold (items only transfer if source has at least this amount)
   - Set requested quantity (maximum amount to transfer)
+- **Circuit Network Integration**: Control transfer requests via circuit signals
+  - Place Circuit Request Controller entities on space platforms
+  - Connect red/green wires to send item signals (signal value = requested quantity)
+  - Controllers manage logistics groups that are synchronized with the platform
+  - Only one controller can control a logistics group globally
+  - Groups are locked when controlled by a circuit controller
 - **UPS-Friendly**: Batched processing with configurable transfer limits
 - **Deadlock Prevention**: Intelligent system prevents circular dependencies and infinite loops
 - **Storage Validation**: Checks available storage space before transfers (including in-transit items)
@@ -114,6 +120,24 @@ A comprehensive spaceship construction and automation mod for Factorio's Space A
    - Click "Add Request"
 4. **Automatic Transfers**: The system will automatically transfer items from other platforms in the same orbit
 5. **Remove Request**: Click "Remove" next to any request to stop requesting that item
+
+### Circuit Network Control for Transfers
+1. **Place Circuit Request Controller**: Build the controller entity on your space platform (unlocked with Spaceship Construction technology)
+2. **Open Controller GUI**: Click on the controller to configure it
+3. **Configure Controller**:
+   - Select or create a logistics group (groups organize related transfer requests)
+   - Choose target planet (where items will be requested from)
+   - Click "Register Controller"
+4. **Connect Circuit Network**: 
+   - Connect red or green wires to the controller
+   - Send item signals where the signal value represents the requested quantity
+   - Example: Iron plate signal with value 1000 = request 1000 iron plates
+5. **Automatic Updates**: The controller reads circuit signals every second and updates transfer requests automatically
+6. **Group Management**:
+   - Each logistics group can only be controlled by one circuit controller globally
+   - Groups are locked when controlled by a circuit controller (cannot be manually edited)
+   - To release a group, unregister the controller or destroy it
+   - Entities can still deactivate/remove groups at any time
 
 ## Advanced Features
 
